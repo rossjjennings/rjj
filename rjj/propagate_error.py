@@ -5,12 +5,12 @@ import inspect
 def propagate_error(func, vals, errs):
     args = inspect.getargspec(func).args
     syms = {arg: sym.Symbol(arg) for arg in args}
-    expr = func(**args)
+    expr = func(**syms)
     grad = {arg: sym.diff(expr, syms[arg]) for arg in syms}
     
-    func = sym.lambdify(tuple(args.values()), expr, "numpy")
+    func = sym.lambdify(tuple(syms.values()), expr, "numpy")
     for arg in grad:
-        grad[arg] = sym.lambdify(tuple(args.values()), grad[arg], "numpy")
+        grad[arg] = sym.lambdify(tuple(syms.values()), grad[arg], "numpy")
     
     func_val = func(*vals)
     grad_vals = {arg: grad[arg](*vals) for arg in grad}
