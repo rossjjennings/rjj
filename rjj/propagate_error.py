@@ -3,6 +3,22 @@ import sympy as sym
 import inspect
 
 def propagate_error(func, vals, errs):
+    '''
+    First-order Gaussian error propagation.
+    
+    Inputs
+    ------
+    func: A function taking any number of sympy Symbol objects
+          and returning a scalar.
+    vals: Floating-point numbers at which to evaluate the function.
+    errs: Errors associated to the values `vals`.
+    
+    Outputs
+    -------
+    func_val: The value of the function, evaluated at the specified point.
+    func_err: The error in the function value, determined by propagating
+              the errors in the coordinates of the evaluation point.
+    '''
     args = inspect.getargspec(func).args
     syms = {arg: sym.Symbol(arg) for arg in args}
     expr = func(**syms)
