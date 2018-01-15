@@ -1,6 +1,9 @@
 import numpy as np
 import sympy as sym
+from collections import namedtuple
 import inspect
+
+value_with_error = namedtuple('value_with_error', ('value', 'error'))
 
 def propagate_error(func, vals, errs):
     '''
@@ -32,4 +35,4 @@ def propagate_error(func, vals, errs):
     grad_vals = {arg: grad[arg](*vals) for arg in grad}
     func_err = np.sqrt(sum(grad_vals[arg]**2*err**2
                            for arg, err in zip(args, errs)))
-    return func_val, func_err
+    return value_with_error(func_val, func_err)
