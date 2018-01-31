@@ -26,6 +26,8 @@ def axis_lengths(covmat, p = 0.05):
     scale_factor = np.sqrt(-2*np.log(p))
     tr = covmat[0,0] + covmat[1,1]
     det = covmat[0,0]*covmat[1,1] - covmat[0,1]*covmat[1,0]
-    eigval1 = (tr + np.sqrt(tr**2 - 4*det))/2
-    eigval2 = (tr - np.sqrt(tr**2 - 4*det))/2
+    # sub-machine-precision "fudge factor" keeps roundoff from making disc < 0
+    disc = tr**2 - 4*det + 1e-18
+    eigval1 = (tr + np.sqrt(disc))/2
+    eigval2 = (tr - np.sqrt(disc))/2
     return scale_factor*np.sqrt(eigval1), scale_factor*np.sqrt(eigval2)
