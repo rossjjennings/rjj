@@ -1,0 +1,15 @@
+#axes.facecolor : 0A090F
+axes.facecolor: black
+axes.edgecolor : white
+axes.labelcolor : white
+#figure.facecolor : 0A090F
+figure.facecolor : black
+font.family : sans-serif
+font.size : 16
+#savefig.facecolor : 0A090F
+savefig.facecolor : black
+text.color : white
+text.usetex : True
+text.latex.preamble : \usepackage{FiraSans},\usepackage{newtxsf}
+xtick.color : white
+ytick.color : white
