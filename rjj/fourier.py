@@ -38,4 +38,4 @@ def real_fourier(time, signal):
     else:
         spec = rfft(signal)*dt
         spec *= np.exp(-2j*np.pi*freq*time[0])
-    #return freq, spec
+    return freq, spec
