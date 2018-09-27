@@ -60,7 +60,7 @@ def fft_roll(a, shift):
     If the array has more than one axis, the last axis is shifted.
     '''
     phase = -2j*pi*shift*rfftfreq(a.shape[-1])
-    return irfft(rfft(a)*np.exp(phase))
+    return irfft(rfft(a)*np.exp(phase), len(a))
 
 def interp_ws(signal, ts = None):
     '''
