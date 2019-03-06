@@ -21,9 +21,13 @@ def axis_lengths(covmat, p = 0.05):
     The scaling is chosen so that the probability of a bivariate normal
     random variable with the given covariance matrix falling outside the
     ellipse is exactly `p`. The default value of `p` is 0.05, which produces
-    a 95% confidence region.
+    a 95% confidence region. If `p` is `None`, a 1-sigma error ellipse is
+    produced.
     '''
-    scale_factor = np.sqrt(-2*np.log(p))
+    if p is None:
+        scale_factor = 1
+    else:
+        scale_factor = np.sqrt(-2*np.log(p))
     tr = covmat[0,0] + covmat[1,1]
     det = covmat[0,0]*covmat[1,1] - covmat[0,1]*covmat[1,0]
     # sub-machine-precision "fudge factor" keeps roundoff from making disc < 0
