@@ -2,7 +2,7 @@ import numpy as np
 from numpy import pi, sin, cos, exp, log, sqrt
 from numpy.fft import fft, ifft, fftfreq, rfft, irfft, rfftfreq
 from scipy.special import sinc
-from scipy.optimize import brent
+from scipy.optimize import brent, curve_fit
 import sys
 eps = sys.float_info.epsilon
 
@@ -77,3 +77,34 @@ def interp_ws(signal, ts = None):
         return np.sum(signal*sinc((t - ts)/dt))
     
     return interpolant
+
+def eval_sin(t, amp, freq, phase, offset, cov=None):
+    '''
+    Evaluate a sine function with arbitrary amplitude, frequency,
+    phase, and offset from zero. Primarily useful in conjunction with
+    fit_sin() below. For example, to sample a sine curve fitted to
+    a time series (t0, x0) at points t, can use 
+    `eval_sin(t, **fit_sin(t0, x0))`.
+    '''
+    return amp * np.sin(2*pi*freq*t - phase) + offset
+
+def fit_sin(t, x, return_cov=False):
+    '''
+    Fit a sine curve to a time series (t, x), using the frequency maximizing
+    the FFT-based power spectrum as an initial guess for the frequency. 
+    Returns the amplitude, frequency, phase, and offset of the optimal curve,
+    along with the corresponding covariance matrix (if `return_cov` is `True`),
+    in a dictionary, which can be used to sample it using eval_sin().
+    '''
+    freqs = np.fft.fftfreq(len(t), (t[1]-t[0]))   # assume uniform spacing
+    fft = np.fft.fft(x)
+    powspec = fft*np.conj(fft)
+    guess_freq = freqs[1 + np.argmax(powspec[1:])]
+    guess_amp = np.std(x) * np.sqrt(2)
+    guess_offset = np.mean(x)
+    guess_params = np.array([guess_amp, guess_freq, 0., guess_offset])
+
+    (amp, omega, freq, offset), cov = curve_fit(eval_sin, t, x, p0=guess_params)
+    params = {'amp': amp, 'freq': freq, 'phase': phase, 'offset': offset}
+    if return_cov: params['cov'] = cov
+    return params
