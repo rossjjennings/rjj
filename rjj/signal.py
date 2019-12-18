@@ -88,7 +88,7 @@ def eval_sin(t, amp, freq, phase, offset, cov=None):
     '''
     return amp * np.sin(2*pi*freq*t - phase) + offset
 
-def fit_sin(t, x, return_cov=False):
+def fit_sin(t, x, return_cov=False, **kwargs):
     '''
     Fit a sine curve to a time series (t, x), using the frequency maximizing
     the FFT-based power spectrum as an initial guess for the frequency. 
@@ -104,7 +104,7 @@ def fit_sin(t, x, return_cov=False):
     guess_offset = np.mean(x)
     guess_params = np.array([guess_amp, guess_freq, 0., guess_offset])
 
-    (amp, freq, phase, offset), cov = curve_fit(eval_sin, t, x, p0=guess_params)
+    (amp, freq, phase, offset), cov = curve_fit(eval_sin, t, x, p0=guess_params, **kwargs)
     params = {'amp': amp, 'freq': freq, 'phase': phase, 'offset': offset}
     if return_cov: params['cov'] = cov
     return params
