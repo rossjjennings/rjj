@@ -63,5 +63,5 @@ def localtime(time, zone=''):
     Supports Olson database strings such as 'US/Eastern', 'Europe/Lisbon',
     etc. via dateutil.tz. If no time zone is specified, local time is returned.
     """
-    fmt = '%Y-%m-%d %H:%M:%S %Z%z'
+    fmt = '%Y-%m-%d %H:%M:%S %Z'
     return localize(time, zone).strftime(fmt)
