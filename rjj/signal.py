@@ -1,6 +1,7 @@
 import numpy as np
 from numpy import pi, sin, cos, exp, log, sqrt
 from numpy.fft import fft, ifft, fftfreq, rfft, irfft, rfftfreq
+from numpy.random import randn
 from scipy.special import sinc
 from scipy.optimize import brent, curve_fit
 import sys
@@ -163,3 +164,32 @@ def rolling_sum(arr, size):
     n = len(arr)
     s = np.cumsum(arr)
     return np.array([s[(i+size)%n]-s[i]+(i+size)//n*s[-1] for i in range(n)])
+
+def red_noise(index, size, pad_factor=2):
+    '''
+    Create a realization of power-law red noise with unit variance.
+    Works around spectra that diverge at zero frequency by removing
+    the mean of the generated time series.
+    
+    Inputs
+    ------
+    `index`: the slope of the power-law spectrum.
+    `size`:  the number of samples to return.
+    `pad_factor`: factor by which to over-generate samples so as to avoid 
+                  periodic output.
+    '''
+    bufsize = pad_factor*size//2+1
+    white_noise = randn(bufsize) + 1j*randn(bufsize)
+    
+    freq = rfftfreq(pad_factor*size)
+    freq[0] = 1
+    filtr = freq**(index/2)
+    filtr[0] = 0
+    
+    filtr_norm = np.sum(filtr**2)*freq[1]/len(filtr)
+    filtr /= np.sqrt(filtr_norm)
+    
+    output_fft = filtr*white_noise
+    output = irfft(output_fft, pad_factor*size)
+    
+    return output[:size]
