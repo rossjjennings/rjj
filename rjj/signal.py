@@ -185,11 +185,10 @@ def red_noise(index, size, pad_factor=2):
     freq[0] = 1
     filtr = freq**(index/2)
     filtr[0] = 0
-    
-    filtr_norm = np.sum(filtr**2)*freq[1]/len(filtr)
-    filtr /= np.sqrt(filtr_norm)
+    filtr /= np.sqrt(np.mean(filtr**2))
     
     output_fft = filtr*white_noise
     output = irfft(output_fft, pad_factor*size)
+    output /= np.sqrt(freq[1])
     
     return output[:size]
