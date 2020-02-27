@@ -192,3 +192,33 @@ def red_noise(index, size, pad_factor=2):
     output /= np.sqrt(freq[1])
     
     return output[:size]
+
+def powlaw_covmat(T, n, fmin, fmax, sigma2=1):
+    '''
+    Calculate the covariance matrix of power-law red noise with specified
+    upper and lower cutoff frequencies. Uses a modified midpoint rule to
+    compute the autocovariance function (as the Fourier transform of the
+    power spectrum) for increased accuracy compared to the FFT.
+    
+    Inputs
+    ------
+    `T`: the duration of the time series.
+    `n`: the number of sample points.
+    `fmin`: lower cutoff frequency for the power-law spectrum.
+    `fmax`: upper cutoff frequency for the power-law spectrum.
+    `sigma2`: variance at lag 0.
+    '''
+    lags = np.linspace(0, T, n, endpoint=False)
+    edges = np.linspace(fmin, fmax, 145)
+    
+    nodes = (3*(edges[1:]**-2 - edges[:-1]**-2))/(2*(edges[1:]**-3 - edges[:-1]**-3))
+    weights = (edges[1:]**-3 - edges[:-1]**-3)/(edges[-1]**-3-edges[0]**-3)
+    
+    acf = sigma2*np.sum(weights*cos(2*pi*nodes*lags[:,np.newaxis]), axis=-1)
+    
+    indices = np.arange(n)
+    xx, yy = np.meshgrid(indices, indices)
+    covmat = acf[np.abs(xx-yy)]
+    covmat += 1e-14*np.eye(n) # Fudge slightly to keep it positive definite
+    
+    return covmat
