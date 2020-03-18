@@ -158,6 +158,7 @@ def gen_pulses(phase, n_pulses = 5000, SNR = np.inf, spec = pulse_spec()):
     ------
     pulses : Pulses, as rows of a 2D array.
     '''
+    n_phase = len(phase)
     profiles = np.zeros((n_pulses, n_phase))
     
     for c in spec.components():
@@ -192,6 +193,7 @@ def gen_profiles(phase, n_profiles = 10, npprof = 1000, SNR = np.inf,
     ------
     profiles : Profiles, as rows of a 2D array.
     '''
+    n_phase = len(phase)
     profiles = np.empty((n_profiles, n_phase))
     pulses = np.empty((npprof, n_phase))
     
@@ -233,6 +235,7 @@ def gen_pseudo_profiles(phase, n_profiles = 100, npprof = 10000,
     ------
     profiles : Profiles, as rows of a 2D array.
     '''
+    n_phase = len(phase)
     
     widths_profile, fj_profile, modindex_profile = [], [], []
     for c in spec.components():
