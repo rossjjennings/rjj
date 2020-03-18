@@ -56,7 +56,7 @@ class pulse_spec:
                  widths=[0.05, 0.05], fj=[0.1, 0.1], modindex=[1., 1.]):
         
         if not (len(amplitudes) == len(locs) == len(widths) == len(fj) == len(modindex)):
-            err_msg1 = """
+            err_msg = """
             lengths of 'amplitudes', 'locs', 'widths', 'fj', and 'modindex' should match.
             """
             raise ValueError(err_msg)
