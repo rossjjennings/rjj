@@ -97,10 +97,10 @@ class pulse_spec:
         return template
     
     @classmethod
-    def from_template_widths(cls, widths=[0.05, 0.05], fj=[0.1, 0.1], **kwargs):
+    def from_template(cls, amplitudes=[1., 0.4], widths=[0.05, 0.05], fj=[0.1, 0.1], **kwargs):
         '''
-        Generate a `pulse_spec` object using template widths 
-        rather than single-pulse widths.
+        Generate a `pulse_spec` object using template widths and amplitudes
+        rather than the single pulse parameters.
         
         Inputs
         ------
@@ -108,8 +108,9 @@ class pulse_spec:
                  Defined in an RMS sense. These should be the template widths.
         amplitudes, locs, fj, modindex : See class docstring.
         '''
+        single_pulse_ampls = [ampl*np.sqrt(1+fj**2) for (ampl, fj) in zip (amplitudes, fj)]
         single_pulse_widths = [width/np.sqrt(1+fj**2) for (width, fj) in zip (widths, fj)]
-        return cls(widths=single_pulse_widths, fj=fj, **kwargs)
+        return cls(amplitudes=single_pulse_ampls, widths=single_pulse_widths, fj=fj, **kwargs)
     
     @classmethod
     def from_fwhms(cls, fwhms=[0.10, 0.10], **kwargs):
@@ -127,7 +128,7 @@ class pulse_spec:
         return cls(widths=widths, **kwargs)
     
     @classmethod
-    def from_template_fwhms(cls, fwhms=[0.10, 0.10], fj=[0.1, 0.1], **kwargs):
+    def from_template_fwhms(cls, amplitudes=[1., 0.4], fwhms=[0.10, 0.10], fj=[0.1, 0.1], **kwargs):
         '''
         Generate a `pulse_spec` object using the full width at half max (FWHM)
         of each component in the template, rather than the RMS width of the component
@@ -139,9 +140,10 @@ class pulse_spec:
                 These should be the template widths.
         amplitudes, locs, fj, modindex : See class docstring.
         '''
+        single_pulse_ampls = [ampl*np.sqrt(1+fj**2) for (ampl, fj) in zip (amplitudes, fj)]
         single_pulse_widths = [fwhm/(2*np.sqrt(2*(1+fj**2)*np.log(2)))
                                for (fwhm, fj) in zip (fwhms, fj)]
-        return cls(widths=single_pulse_widths, fj=fj, **kwargs)
+        return cls(amplitudes=single_pulse_ampls, widths=single_pulse_widths, fj=fj, **kwargs)
 
 def gen_pulses(phase, n_pulses = 5000, SNR = np.inf, spec = pulse_spec()):
     '''
