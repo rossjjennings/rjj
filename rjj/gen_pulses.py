@@ -143,23 +143,21 @@ class pulse_spec:
                                for (fwhm, fj) in zip (fwhms, fj)]
         return cls(widths=single_pulse_widths, fj=fj, **kwargs)
 
-def gen_pulses(n_phase = 2048, n_pulses = 5000, SNR = np.inf, spec = pulse_spec()):
+def gen_pulses(phase, n_pulses = 5000, SNR = np.inf, spec = pulse_spec()):
     '''
     Generate synthetic pulses from a model with several Gaussian components.
     
     Inputs
     ------
-    n_phase  : Number of phase bins to use.
+    phase    : Phase values (between -0.5 and 0.5)
     n_pulses : Number of pulses to generate.
     SNR      : Signal-to-noise ratio. If this is `np.inf`, no noise is added.
     spec     : Pulse specification (see `pulse_spec` class)
     
-    Outputs
-    -------
-    phase    : Phase values corresponding to the generated profiles.
-    profiles : Profiles, as rows of a 2D array.
+    Output
+    ------
+    pulses : Pulses, as rows of a 2D array.
     '''
-    phase = np.linspace(-0.5, 0.5, n_phase, endpoint=False)
     profiles = np.zeros((n_pulses, n_phase))
     
     for c in spec.components():
@@ -173,9 +171,9 @@ def gen_pulses(n_phase = 2048, n_pulses = 5000, SNR = np.inf, spec = pulse_spec(
     
     if np.isfinite(SNR):
         profiles += randn(n_pulses, n_phase)/SNR
-    return phase, profiles
+    return profiles
 
-def gen_profiles(n_phase = 2048, n_profiles = 10, npprof = 1000, SNR = np.inf,
+def gen_profiles(phase, n_profiles = 10, npprof = 1000, SNR = np.inf,
                  spec = pulse_spec()):
     '''
     Generate average profiles from a model with several Gaussian components.
@@ -183,20 +181,17 @@ def gen_profiles(n_phase = 2048, n_profiles = 10, npprof = 1000, SNR = np.inf,
     
     Inputs
     ------
-    n_phase    : Number of phase bins to use.
+    phase      : Phase values (between -0.5 and 0.5)
     n_profiles : Number of profiles to generate.
     npprof     : Number of pulses to average for each profile.
     SNR        : Signal-to-noise ratio. If this is `np.inf`, no noise is added.
     spec       : Pulse specification (see `pulse_spec` class).
                  Parameters should correspond to a single pulse.
     
-    Outputs
-    -------
-    phase    : Phase values corresponding to the generated profiles.
-    template : Template, as a 1D array.
+    Output
+    ------
     profiles : Profiles, as rows of a 2D array.
     '''
-    phase = np.linspace(-0.5, 0.5, n_phase, endpoint=False)
     profiles = np.empty((n_profiles, n_phase))
     pulses = np.empty((npprof, n_phase))
     
@@ -215,10 +210,9 @@ def gen_profiles(n_phase = 2048, n_profiles = 10, npprof = 1000, SNR = np.inf,
     if np.isfinite(SNR):
         profiles += randn(n_profiles, n_phase)/SNR
     
-    template = spec.template(phase)
-    return phase, template, profiles
+    return profiles
 
-def gen_pseudo_profiles(n_phase = 2048, n_profiles = 100, npprof = 10000,
+def gen_pseudo_profiles(phase, n_profiles = 100, npprof = 10000,
                         SNR = np.inf, spec = pulse_spec()):
     '''
     Generate synthetic "average profiles" from a model with several Gaussian
@@ -228,20 +222,17 @@ def gen_pseudo_profiles(n_phase = 2048, n_profiles = 100, npprof = 10000,
     
     Inputs
     ------
-    n_phase    : Number of phase bins to use.
+    phase      : Phase values (between -0.5 and 0.5)
     n_profiles : Number of profiles to generate.
     npprof     : Number of pulses to emulate averaging for each profile.
     SNR        : Signal-to-noise ratio. If this is `np.inf`, no noise is added.
     spec       : Pulse specification (see `pulse_spec` class).
                  Parameters should correspond to a single pulse.
     
-    Outputs
-    -------
-    phase    : Phase values corresponding to the generated profiles.
-    template : Template, as a 1D array.
+    Output
+    ------
     profiles : Profiles, as rows of a 2D array.
     '''
-    phase = np.linspace(-0.5, 0.5, n_phase, endpoint=False)
     
     widths_profile, fj_profile, modindex_profile = [], [], []
     for c in spec.components():
@@ -253,6 +244,5 @@ def gen_pseudo_profiles(n_phase = 2048, n_profiles = 100, npprof = 10000,
     
     profile_spec = pulse_spec(spec.amplitudes, spec.locs,
                               widths_profile, fj_profile, modindex_profile)
-    template = spec.template(phase)
-    _, profiles = gen_pulses(n_phase, n_profiles, SNR, profile_spec)
-    return phase, template, profiles
+    profiles = gen_pulses(n_phase, n_profiles, SNR, profile_spec)
+    return profiles
