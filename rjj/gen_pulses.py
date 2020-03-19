@@ -193,7 +193,9 @@ def gen_pulses(phase, n_pulses = 5000, SNR = np.inf, spec = pulse_spec()):
         args = (phase - locs[:,np.newaxis])**2/(2*c.width**2)
         profiles += amplitudes[:,np.newaxis] * exp(-args) 
     
-    if np.isfinite(SNR):
+    if np.any(SNR != np.inf):
+        if np.ndim(SNR) != 0:
+            SNR = SNR[..., np.newaxis]
         profiles += randn(n_pulses, n_phase)/SNR
     return profiles
 
@@ -231,7 +233,9 @@ def gen_profiles(phase, n_profiles = 10, npprof = 1000, SNR = np.inf,
             pulses += amplitudes[:,np.newaxis] * exp(-args)
         profiles[i,:] = np.mean(pulses, axis=0)
     
-    if np.isfinite(SNR):
+    if np.any(SNR != np.inf):
+        if np.ndim(SNR) != 0:
+            SNR = SNR[..., np.newaxis]
         profiles += randn(n_profiles, n_phase)/SNR
     
     return profiles
@@ -296,7 +300,9 @@ def shift_template(phase, shifts, SNR = np.inf, spec = pulse_spec()):
         loc = c.loc + shifts[..., np.newaxis]
         profiles += c.amplitude*exp(-(phase-loc)**2/(2*c.width**2))
     
-    if np.isfinite(SNR):
+    if np.any(SNR != np.inf):
+        if np.ndim(SNR) != 0:
+            SNR = SNR[..., np.newaxis]
         profiles += randn(*profiles_shape)/SNR
     
     return profiles
