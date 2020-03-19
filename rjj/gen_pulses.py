@@ -103,6 +103,20 @@ class pulse_spec:
             template += c.amplitude*exp(-(phase-c.loc)**2/(2*c.width**2))
         return template
     
+    def template_deriv(self, phase):
+        '''
+        Return the derivative of the template given by this pulse specification.
+        
+        Inputs
+        ------
+        phase: Array of phase values at which to evaluate the template.
+        '''
+        template_deriv = np.zeros_like(phase)
+        for c in self.template_components():
+            template_deriv += (-c.amplitude*(phase-c.loc)/c.width**2
+                               * exp(-(phase-c.loc)**2/(2*c.width**2)))
+        return template_deriv
+    
     @classmethod
     def from_template(cls, amplitudes=[1., 0.4], widths=[0.05, 0.05], fj=[0.1, 0.1], **kwargs):
         '''
