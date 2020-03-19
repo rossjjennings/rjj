@@ -210,7 +210,6 @@ def gen_profiles(phase, n_profiles = 10, npprof = 1000, SNR = np.inf,
     npprof     : Number of pulses to average for each profile.
     SNR        : Signal-to-noise ratio. If this is `np.inf`, no noise is added.
     spec       : Pulse specification (see `pulse_spec` class).
-                 Parameters should correspond to a single pulse.
     
     Output
     ------
@@ -252,7 +251,6 @@ def gen_pseudo_profiles(phase, n_profiles = 100, npprof = 10000,
     npprof     : Number of pulses to emulate averaging for each profile.
     SNR        : Signal-to-noise ratio. If this is `np.inf`, no noise is added.
     spec       : Pulse specification (see `pulse_spec` class).
-                 Parameters should correspond to a single pulse.
     
     Output
     ------
@@ -271,4 +269,34 @@ def gen_pseudo_profiles(phase, n_profiles = 100, npprof = 10000,
     profile_spec = pulse_spec(spec.amplitudes, spec.locs,
                               widths_profile, fj_profile, modindex_profile)
     profiles = gen_pulses(n_phase, n_profiles, SNR, profile_spec)
+    return profiles
+
+def shift_template(phase, shifts, SNR = np.inf, spec = pulse_spec()):
+    '''
+    Generate synthetic profiles by shifting a template.
+    
+    Inputs
+    ------
+    phase  : Phase values (between -0.5 and 0.5)
+    shifts : Number of profiles to generate.
+    npprof : Number of pulses to emulate averaging for each profile.
+    SNR    : Signal-to-noise ratio. If this is `np.inf`, no noise is added.
+    spec   : Pulse specification (see `pulse_spec` class).
+    
+    Output
+    ------
+    profiles : Profiles, as rows of a 2D array.
+    '''
+    n_phase = len(phase)
+    shifts = np.atleast_1d(shifts)
+    profiles_shape = list(shifts.shape) + [n_phase]
+    profiles = np.zeros(profiles_shape)
+    
+    for c in spec.template_components():
+        loc = c.loc + shifts[..., np.newaxis]
+        profiles += c.amplitude*exp(-(phase-loc)**2/(2*c.width**2))
+    
+    if np.isfinite(SNR):
+        profiles += randn(*profiles_shape)/SNR
+    
     return profiles
