@@ -89,7 +89,7 @@ class pulse_spec:
         ------
         phase : Array of phase values at which to evaluate the template.
         '''
-        template = np.zeros(len(phase))
+        template = np.zeros_like(phase)
         for c in self.components():
             amplitude = c.amplitude/np.sqrt(1+c.fj**2)
             width = c.width*np.sqrt(1+c.fj**2)
