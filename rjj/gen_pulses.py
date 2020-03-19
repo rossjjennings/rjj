@@ -81,6 +81,15 @@ class pulse_spec:
         max_amplitude = max(amplitudes)
         amplitudes = [amplitude/max_amplitude for amplitude in amplitudes]
     
+    def template_components(self):
+        '''
+        Return an iterator yielding the components of the template as `subpulse` objects.
+        '''
+        for c in self.components():
+            c.amplitude = c.amplitude/np.sqrt(1+c.fj**2)
+            c.width = c.width*np.sqrt(1+c.fj**2)
+            yield c
+    
     def template(self, phase):
         '''
         Return the template shape given by this pulse specification.
@@ -90,10 +99,8 @@ class pulse_spec:
         phase : Array of phase values at which to evaluate the template.
         '''
         template = np.zeros_like(phase)
-        for c in self.components():
-            amplitude = c.amplitude/np.sqrt(1+c.fj**2)
-            width = c.width*np.sqrt(1+c.fj**2)
-            template += amplitude*exp(-(phase-c.loc)**2/(2*width**2))
+        for c in self.template_components():
+            template += c.amplitude*exp(-(phase-c.loc)**2/(2*c.width**2))
         return template
     
     @classmethod
