@@ -56,12 +56,21 @@ def toa_ws(template, profile, ts = None, tol = sqrt(eps)):
                           method = 'Brent', bracket = brack, tol = tol).x
     
     assert brack[0] < toa < brack[-1]
+    
+    template_shifted = fft_roll(template, toa/dt)
+    b = np.dot(template_shifted, profile)/np.dot(template, template)
+    residual = profile - b*template_shifted
+    ampl = b*np.max(template_shifted)
+    noise_level = np.std(residual)
+    snr = ampl/noise_level
+    
+    w_eff = n*dt/np.sqrt(np.trapz(np.gradient(template, ts)**2, ts))
+    error = w_eff/(snr*sqrt(n))
+    
     if amplitude:
-        template_shifted = fft_roll(template, toa/dt)
-        b = np.dot(template_shifted, profile)/np.dot(template, template)
-        ampl = b*np.max(template_shifted)
-        return toa, ampl
-    return toa
+        return toa, error, ampl
+    else:
+        return toa, error
 
 def toa_fourier(template, profile, amplitude = False, ts = None, tol = sqrt(eps)):
     '''
@@ -101,12 +110,21 @@ def toa_fourier(template, profile, amplitude = False, ts = None, tol = sqrt(eps)
                           method = 'Brent', bracket = brack, tol = tol).x
     
     assert brack[0] < toa < brack[-1]
+    
+    template_shifted = fft_roll(template, toa/dt)
+    b = np.dot(template_shifted, profile)/np.dot(template, template)
+    residual = profile - b*template_shifted
+    ampl = b*np.max(template_shifted)
+    noise_level = np.std(residual)
+    snr = ampl/noise_level
+    
+    w_eff = n*dt/np.sqrt(np.trapz(np.gradient(template, ts)**2, ts))
+    error = w_eff/(snr*sqrt(n))
+    
     if amplitude:
-        template_shifted = fft_roll(template, toa/dt)
-        b = np.dot(template_shifted, profile)/np.dot(template, template)
-        ampl = b*np.max(template_shifted)
-        return toa, ampl
-    return toa
+        return toa, error, ampl
+    else:
+        return toa, error
 
 def test_toa_recovery(func, template, n, rms_toa, SNR=np.inf, ts=None,
                       tol=sqrt(eps)):
