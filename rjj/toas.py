@@ -4,6 +4,7 @@ import numpy as np
 from numpy import pi, sin, cos, exp, log, sqrt
 from numpy.fft import fft, ifft, fftfreq, rfft, irfft, rfftfreq
 from numpy.random import randn
+from collections import namedtuple
 from scipy.optimize import minimize_scalar
 from rjj.signal import fft_roll, rolling_sum
 import sys
@@ -29,14 +30,14 @@ def offpulse_rms(profile, size):
     opw = offpulse_window(profile, size)
     return np.sqrt(np.mean(profile[opw]**2))
 
+ToaResult = namedtuple('ToaResult', ['toa', 'error', 'ampl'])
+
 def toa_ws(template, profile, ts = None, tol = sqrt(eps)):
     '''
     Calculate a TOA by maximizing the Whittaker-Shannon interpolant of the 
     CCF between `template` and `profile`. Searches within the interval
     between the sample below and the sample above the argmax of the CCF.
     
-    `amplitude`: Whether to return the amplitude (max. value of profile model)
-                 in addition to the TOA.
     `ts`:  Evenly-spaced array of phase values corresponding to the profile.
            Sets the units of the TOA. If this is `None`, the TOA is reported
            in bins.
@@ -67,19 +68,14 @@ def toa_ws(template, profile, ts = None, tol = sqrt(eps)):
     w_eff = n*dt/np.sqrt(np.trapz(np.gradient(template, ts)**2, ts))
     error = w_eff/(snr*sqrt(n))
     
-    if amplitude:
-        return toa, error, ampl
-    else:
-        return toa, error
+    return ToaResult(toa=toa, error=error, ampl=ampl)
 
-def toa_fourier(template, profile, amplitude = False, ts = None, tol = sqrt(eps)):
+def toa_fourier(template, profile, ts = None, tol = sqrt(eps)):
     '''
     Calculate a TOA by maximizing the CCF of the template and the profile
     in the frequency domain. Searches within the interval between the sample
     below and the sample above the argmax of the circular CCF.
     
-    `amplitude`: Whether to return the amplitude (max. value of profile model)
-                 in addition to the TOA.
     `ts`:  Evenly-spaced array of phase values corresponding to the profile.
            Sets the units of the TOA. If this is `None`, the TOA is reported 
            in bins.
@@ -121,10 +117,7 @@ def toa_fourier(template, profile, amplitude = False, ts = None, tol = sqrt(eps)
     w_eff = n*dt/np.sqrt(np.trapz(np.gradient(template, ts)**2, ts))
     error = w_eff/(snr*sqrt(n))
     
-    if amplitude:
-        return toa, error, ampl
-    else:
-        return toa, error
+    return ToaResult(toa=toa, error=error, ampl=ampl)
 
 def test_toa_recovery(func, template, n, rms_toa, SNR=np.inf, ts=None,
                       tol=sqrt(eps)):
