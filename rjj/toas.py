@@ -71,7 +71,7 @@ def toa_ws(template, profile, ts = None, offpulse_rms = None, tol = sqrt(eps)):
         noise_level = offpulse_rms
     snr = ampl/noise_level
     
-    w_eff = n*dt/np.sqrt(np.trapz(np.gradient(template, ts)**2, ts))
+    w_eff = np.sqrt(n*dt/np.trapz(np.gradient(template, ts)**2, ts))
     error = w_eff/(snr*sqrt(n))
     
     return ToaResult(toa=toa, error=error, ampl=ampl)
@@ -126,7 +126,7 @@ def toa_fourier(template, profile, ts = None, offpulse_rms = None, tol = sqrt(ep
         noise_level = offpulse_rms
     snr = ampl/noise_level
     
-    w_eff = n*dt/np.sqrt(np.trapz(np.gradient(template, ts)**2, ts))
+    w_eff = np.sqrt(n*dt/np.trapz(np.gradient(template, ts)**2, ts))
     error = w_eff/(snr*sqrt(n))
     
     return ToaResult(toa=toa, error=error, ampl=ampl)
