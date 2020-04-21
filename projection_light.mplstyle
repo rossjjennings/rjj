@@ -7,6 +7,6 @@ font.size : 16
 savefig.facecolor : white
 text.color : black
 text.usetex : True
-text.latex.preamble : \usepackage{FiraSans},\usepackage{newtxsf}
+text.latex.preamble : \usepackage{FiraSans} \usepackage{newtxsf}
 xtick.color : black
 ytick.color : black
