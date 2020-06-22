@@ -153,7 +153,7 @@ def test_toa_recovery(func, template, n, rms_toa, SNR=np.inf, ts=None,
         profile = fft_roll(template, true_toa/dt)
         if np.isfinite(SNR):
             profile += randn(len(profile))/SNR
-        toa_estimate = func(template, profile, ts=ts, tol=tol)
+        toa_estimate = func(template, profile, ts=ts, tol=tol).toa
         dtoas.append(toa_estimate-true_toa)
     dtoas = np.array(dtoas)
     return np.sqrt(np.mean(dtoas**2))
