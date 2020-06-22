@@ -6,7 +6,7 @@ from numpy.fft import fft, ifft, fftfreq, rfft, irfft, rfftfreq
 from numpy.random import randn
 from collections import namedtuple
 from scipy.optimize import minimize_scalar
-from rjj.signal import fft_roll, rolling_sum
+from rjj.signal import fft_roll, rolling_sum, interp_ws
 import sys
 eps = sys.float_info.epsilon
 
@@ -32,7 +32,7 @@ def offpulse_rms(profile, size):
 
 ToaResult = namedtuple('ToaResult', ['toa', 'error', 'ampl'])
 
-def toa_ws(template, profile, ts = None, offpulse_rms = None, tol = sqrt(eps)):
+def toa_ws(template, profile, ts = None, noise_level = None, tol = sqrt(eps)):
     '''
     Calculate a TOA by maximizing the Whittaker-Shannon interpolant of the 
     CCF between `template` and `profile`. Searches within the interval
@@ -46,8 +46,9 @@ def toa_ws(template, profile, ts = None, offpulse_rms = None, tol = sqrt(eps)):
            Used in calculating error. If not supplied, noise level will be
            estimated as the standard deviation of the profile residual.
     '''
+    n = len(profile)
     if ts is None:
-        ts = np.arange(len(profile))
+        ts = np.arange(n)
     dt = ts[1] - ts[0]
     lags = np.arange(-len(ts) + 1, len(ts))*dt
     
