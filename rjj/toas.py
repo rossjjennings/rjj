@@ -42,7 +42,7 @@ def toa_ws(template, profile, ts = None, noise_level = None, tol = sqrt(eps)):
            Sets the units of the TOA. If this is `None`, the TOA is reported
            in bins.
     `tol`: Relative tolerance for optimization.
-    `offpulse_rms`: Off-pulse noise, in the same units as the profile.
+    `noise_level`: Off-pulse noise, in the same units as the profile.
            Used in calculating error. If not supplied, noise level will be
            estimated as the standard deviation of the profile residual.
     '''
@@ -66,10 +66,8 @@ def toa_ws(template, profile, ts = None, noise_level = None, tol = sqrt(eps)):
     b = np.dot(template_shifted, profile)/np.dot(template, template)
     residual = profile - b*template_shifted
     ampl = b*np.max(template_shifted)
-    if offpulse_rms is None:
-        noise_level = np.std(residual)
-    else:
-        noise_level = offpulse_rms
+    if noise_level is None:
+        noise_level = offpulse_rms(profile, profile.size//4)
     snr = ampl/noise_level
     
     w_eff = np.sqrt(n*dt/np.trapz(np.gradient(template, ts)**2, ts))
@@ -77,7 +75,7 @@ def toa_ws(template, profile, ts = None, noise_level = None, tol = sqrt(eps)):
     
     return ToaResult(toa=toa, error=error, ampl=ampl)
 
-def toa_fourier(template, profile, ts = None, offpulse_rms = None, tol = sqrt(eps)):
+def toa_fourier(template, profile, ts = None, noise_level = None, tol = sqrt(eps)):
     '''
     Calculate a TOA by maximizing the CCF of the template and the profile
     in the frequency domain. Searches within the interval between the sample
@@ -87,7 +85,7 @@ def toa_fourier(template, profile, ts = None, offpulse_rms = None, tol = sqrt(ep
            Sets the units of the TOA. If this is `None`, the TOA is reported 
            in bins.
     `tol`: Relative tolerance for optimization (in bins).
-    `offpulse_rms`: Off-pulse noise, in the same units as the profile.
+    `noise_level`: Off-pulse noise, in the same units as the profile.
            Used in calculating error. If not supplied, noise level will be
            estimated as the standard deviation of the profile residual.
     '''
@@ -121,10 +119,8 @@ def toa_fourier(template, profile, ts = None, offpulse_rms = None, tol = sqrt(ep
     b = np.dot(template_shifted, profile)/np.dot(template, template)
     residual = profile - b*template_shifted
     ampl = b*np.max(template_shifted)
-    if offpulse_rms is None:
-        noise_level = np.std(residual)
-    else:
-        noise_level = offpulse_rms
+    if noise_level is None:
+        noise_level = offpulse_rms(profile, profile.size//4)
     snr = ampl/noise_level
     
     w_eff = np.sqrt(n*dt/np.trapz(np.gradient(template, ts)**2, ts))
