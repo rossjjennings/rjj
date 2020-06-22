@@ -85,7 +85,7 @@ def toa_fourier(template, profile, ts = None, offpulse_rms = None, tol = sqrt(ep
     `ts`:  Evenly-spaced array of phase values corresponding to the profile.
            Sets the units of the TOA. If this is `None`, the TOA is reported 
            in bins.
-    `tol`: Relative tolerance for optimization.
+    `tol`: Relative tolerance for optimization (in bins).
     `offpulse_rms`: Off-pulse noise, in the same units as the profile.
            Used in calculating error. If not supplied, noise level will be
            estimated as the standard deviation of the profile residual.
@@ -112,7 +112,7 @@ def toa_fourier(template, profile, ts = None, offpulse_rms = None, tol = sqrt(ep
     
     brack = (ccf_max - dt, ccf_max, ccf_max + dt)
     toa = minimize_scalar(lambda tau: -ccf_fourier(tau),
-                          method = 'Brent', bracket = brack, tol = tol).x
+                          method = 'Brent', bracket = brack, tol = tol*dt).x
     
     assert brack[0] < toa < brack[-1]
     
