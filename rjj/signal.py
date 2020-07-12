@@ -4,6 +4,7 @@ from numpy.fft import fft, ifft, fftfreq, rfft, irfft, rfftfreq
 from numpy.random import randn
 from scipy.special import sinc
 from scipy.optimize import brent, curve_fit
+import warnings
 import sys
 eps = sys.float_info.epsilon
 
@@ -60,8 +61,21 @@ def fft_roll(a, shift):
     This is the reverse of the convention used by pypulse.utils.fftshift().
     If the array has more than one axis, the last axis is shifted.
     '''
-    phase = -2j*pi*shift*rfftfreq(a.shape[-1])
-    return irfft(rfft(a)*np.exp(phase), len(a))
+    n = a.shape[-1]
+    warnings.filterwarnings(action='error', category=np.ComplexWarning)
+    try:
+        phase = -2j*pi*shift*rfftfreq(n)
+        return irfft(rfft(a)*np.exp(phase), n)
+    except np.ComplexWarning:
+        phase = -2j*pi*shift*fftfreq(n)
+        filtr = np.exp(phase)
+        if n % 2 == 0:
+            # Take real part of Nyquist frequency term
+            # to match behavior when a is real
+            filtr[n//2] = filtr[n//2].real
+        return ifft(fft(a)*filtr, n)
+    finally:
+        warnings.resetwarnings()
 
 def interp_ws(signal, ts = None):
     '''
