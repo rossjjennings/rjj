@@ -272,7 +272,7 @@ def gen_pseudo_profiles(phase, n_profiles = 100, npprof = 10000,
     
     profile_spec = pulse_spec(spec.amplitudes, spec.locs,
                               widths_profile, fj_profile, modindex_profile)
-    profiles = gen_pulses(n_phase, n_profiles, SNR, profile_spec)
+    profiles = gen_pulses(phase, n_profiles, SNR, profile_spec)
     return profiles
 
 def shift_template(phase, shifts, SNR = np.inf, spec = pulse_spec()):
