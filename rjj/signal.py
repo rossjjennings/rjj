@@ -77,6 +77,14 @@ def fft_roll(a, shift):
     finally:
         warnings.resetwarnings()
 
+def fft_roll_deriv(a, shift=0):
+    '''
+    Derivative of fft_roll(a, shift) with respect to the shift.
+    '''
+    n = a.shape[-1]
+    phase = -2j*pi*rfftfreq(n)
+    return irfft(phase*rfft(a)*np.exp(shift*phase), n)
+
 def interp_ws(signal, ts = None):
     '''
     Calculate the Whittaker-Shannon interpolant of a signal.
