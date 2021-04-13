@@ -117,6 +117,26 @@ class pulse_spec:
                                * exp(-(phase-c.loc)**2/(2*c.width**2)))
         return template_deriv
     
+    def covmat(self, phase):
+        '''
+        Return the covariance matrix of the pulses given by this pulse specification.
+        
+        Inputs
+        ------
+        phase: Array of phase values at which to evaluate the covariance matrix.
+        '''
+        xx, yy = np.meshgrid(phase)
+        covmat = np.zeros_like(xx)
+        for c in self.components():
+            prefactor1 = (1 + c.modindex**2)*c.amplitude**2/(1 + 2*c.fj**2)
+            prefactor2 = c.amplitude**2/(1 + c.fj**2)
+            expt1 = (xx - c.loc)**2 + (yy - c.loc)**2 + c.fj**2*(xx - yy)**2
+            expt1 /= -2*(1 + 2*c.fj**2)*c.width**2
+            expt2 = (xx - c.loc)**2 + (yy - c.loc)**2
+            expt2 /= -2*(1 + c.fj**2)*c.width**2
+            covmat += prefactor1*exp(expt1) - prefactor2*exp(expt2)
+        return covmat
+    
     @classmethod
     def from_template(cls, amplitudes=[1., 0.4], widths=[0.05, 0.05], fj=[0.1, 0.1], **kwargs):
         '''
