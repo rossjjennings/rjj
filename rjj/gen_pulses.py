@@ -125,7 +125,7 @@ class pulse_spec:
         ------
         phase: Array of phase values at which to evaluate the covariance matrix.
         '''
-        xx, yy = np.meshgrid(phase)
+        xx, yy = np.meshgrid(phase, phase)
         covmat = np.zeros_like(xx)
         for c in self.components():
             prefactor1 = (1 + c.modindex**2)*c.amplitude**2/(1 + 2*c.fj**2)
