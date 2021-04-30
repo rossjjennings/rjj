@@ -9,7 +9,7 @@ def fourier(time, signal):
     in the reciprocal of the time units. It is assumed that
     `time` is an array of evenly-spaced time samples.
     '''
-    N = len(signal)
+    N = signal.shape[-1]
     dt = time[1]-time[0]
     freq = fftshift(fftfreq(N, dt))
     if 0 in time:
@@ -28,7 +28,7 @@ def inv_fourier(freq, signal_fft):
     in the form output by that function (starting with the most negative).
     Returns a tuple of the form (time, signal).
     '''
-    N = len(signal_fft)
+    N = signal_fft.shape[-1]
     freq = ifftshift(freq)
     T = 1/(freq[1] - freq[0])
     time = np.linspace(0, T, N, endpoint=False)
@@ -45,7 +45,7 @@ def real_fourier(time, signal):
     in the reciprocal of the time units. It is assumed that
     `time` is an array of evenly-spaced time samples.
     '''
-    N = len(signal)
+    N = signal.shape[-1]
     dt = time[1]-time[0]
     freq = rfftfreq(N, dt)
     if 0 in time:
@@ -68,7 +68,7 @@ def inv_real_fourier(freq, signal_fft, odd=False):
     even-length output will be returned.
     Returns a tuple of the form (time, signal).
     '''
-    N = 2*(len(signal_fft)-1) + (1 if odd else 0)
+    N = 2*(signal_fft.shape[-1]-1) + (1 if odd else 0)
     T = 1/(freq[1] - freq[0])
     time = np.linspace(0, T, N, endpoint=False)
     dt = time[1] - time[0]
