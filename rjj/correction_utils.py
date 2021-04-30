@@ -1,0 +1,383 @@
+import numpy as np
+from numpy import pi, sin, cos, exp, log, sqrt
+from numpy.fft import fft, ifft, rfft, irfft, fftfreq, fftshift
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+from scipy.linalg import svd
+from scipy.optimize import minimize_scalar
+from collections import namedtuple
+
+from rjj.toas import toa_fourier
+from rjj.signal import fft_roll
+from rjj.gen_pulses import pulse_spec, gen_profiles
+
+def gen_data(spec, n_profiles, npprof, n_bins, SNR, drift_bins):
+    '''
+    Generated simulated data based on a pulse specification.
+    '''
+    phase = np.linspace(-1/2, 1/2, n_bins, endpoint=False)
+    profiles = gen_profiles(phase, spec=spec, n_profiles=n_profiles, npprof=npprof, SNR=SNR)
+    
+    shifts = drift_bins/n_profiles*np.arange(n_profiles)
+    shifts -= np.mean(shifts)
+    for i, profile in enumerate(profiles):
+        profiles[i] = fft_roll(profile, shifts[i])
+    
+    return phase, profiles
+
+def skewness_function(profile):
+    '''
+    Calculates the skewness function 
+       K(tau) = <I(t)**2 I(t+tau) - I(t) I(t+tau)**2> / <I(t)**3>.
+    K(tau) is antisymmetric.
+    Size of K(tau) is 2*size(x)-1.
+    Normalization: scaled by third moment, so skewness function is scale free
+    (independent of multiplication by scale factor)
+    '''
+    third_moment = np.sum(profile**3)
+    T_plus = np.correlate(profile, profile**2, mode='full')/third_moment
+    T_minus= np.correlate(profile**2, profile, mode='full')/third_moment
+    skewness = T_plus - T_minus
+    return skewness
+
+def skewness_coeff(lags, skewness, nlags=16):
+    '''
+    Approximate the coefficient of tau**3 in the expansion of the skewness
+    function around the origin by fitting a fifth-degree polynomial to the
+    region of width `2*nlags + 1` around the zero-lag bin and taking the
+    coefficient of the cubic term.
+    '''
+    inds, = np.where(lags == 0)
+    zero_lag_bin = inds[0]
+    sl = slice(zero_lag_bin-nlags, zero_lag_bin+nlags+1)
+    coeffs = np.polyfit(lags[sl], skewness[sl], 5)
+    return coeffs[2]
+
+def get_template(profiles, n_iter=1):
+    '''
+    Create a template by iteratively aligning and averaging profiles.
+    Starts by averaging the middle 10% of profiles and iterates `n_iter` times,
+    each time aligning the pulses using the previous template and averaging
+    to create a new template.
+    '''
+    n = profiles.shape[0]
+    n_5_percent = n//20
+    sl = slice(n//2 - n_5_percent, n//2 + n_5_percent)
+    template = np.mean(profiles[sl], axis=0)
+    toas = np.empty(profiles.shape[0])
+    
+    for i in range(n_iter):
+        for i, profile in enumerate(profiles):
+            result = toa_fourier(template, profile)
+            toas[i] = result.toa
+        profiles_aligned = np.empty_like(profiles)
+        for j, profile in enumerate(profiles):
+            profiles_aligned[j] = fft_roll(profile, -toas[j])
+
+        template = np.mean(profiles_aligned, axis=0)
+    
+    return template
+
+def calc_skewness_coeffs(profiles):
+    '''
+    Calculate skewness coefficients for a set of profiles.
+    '''
+    n_profiles, n_bins = profiles.shape
+    lags = np.empty(2*n_bins-1)
+    lags[n_bins-1:] = np.linspace(0, 1, n_bins)
+    lags[:n_bins-1] = -np.linspace(0, 1, n_bins)[:0:-1]
+    
+    skewness_fns = np.empty((n_profiles, 2*n_bins-1))
+    for i, profile in enumerate(profiles):
+        skewness_fn = skewness_function(profile)
+        skewness_fns[i] = skewness_fn
+    skewness_coeffs = np.array([
+        skewness_coeff(lags, skewness_fn, nlags=129) for skewness_fn in skewness_fns
+    ])
+    
+    return skewness_coeffs
+
+def calc_dtoas(template, profiles, poly_degree=1):
+    '''
+    Calculate ΔTOAs from profiles with polynomial drift.
+    '''
+    n_profiles = profiles.shape[0]
+    profile_number = np.arange(n_profiles)
+    toas = np.empty(n_profiles)
+    for i, profile in enumerate(profiles):
+        result = toa_fourier(template, profile)
+        toas[i] = result.toa
+    timing_poly_coeffs = np.polyfit(profile_number, toas, poly_degree)
+    timing_poly_vals = np.polyval(timing_poly_coeffs, profile_number)
+    dtoas = toas - timing_poly_vals
+    
+    return dtoas
+
+def extract_pcs(profiles, n_pcs, n_iter=1, initial_template=None, return_all=True, use_trend=True):
+    '''
+    Iteratively extract a template and principal components from a set of profiles.
+    Each iteration uses the results of the previous iteration to improve alignment.
+    An initial template can be supplied; if not, the default strategy is to average
+    the middle 10 percent of profiles to get an initial template.
+    
+    Inputs
+    ------
+    profiles:   The profiles, as rows of a 2-D array.
+    n_pcs:      The number of principal components to use in the model.
+    n_iter:     The number of iterations to perform.
+    initial_template: The initial template (see above).
+    return_all: Return all principal components (instead of the first `n_pcs`).
+    use_trend:  If `False`, align profiles using their individual TOAs,
+                ignoring n_iter. If `True`, align using a linear trend (default).
+    
+    Outputs
+    -------
+    template: The final template
+    pcs:      The final principal components
+    eigvals:  The eigenvalues corresponding to the principal components.
+    scores:   The PC scores of the training data.
+    dtoas:    The differences between the TOAs and the linear trend.
+    '''
+    n_profiles = profiles.shape[0]
+    profile_number = np.arange(n_profiles)
+    if initial_template is None:
+        initial_template = get_template(profiles, n_iter=0)
+    
+    toas = np.zeros(n_profiles)
+    for i, profile in enumerate(profiles):
+        result = toa_fourier(initial_template, profile)
+        toas[i] = result.toa
+    
+    resids = np.empty_like(profiles)
+    if use_trend:
+        for i in range(n_iter):
+            trend_coeffs = np.polyfit(profile_number, toas, 1)
+            trend = np.polyval(trend_coeffs, profile_number)
+            
+            profiles_aligned = np.empty_like(profiles)
+            for j, profile in enumerate(profiles):
+                profiles_aligned[j] = fft_roll(profile, -trend[j])
+            
+            template = np.mean(profiles_aligned, axis=0)
+            for j, profile in enumerate(profiles_aligned):
+                ampl = np.dot(profile, template)/np.dot(template, template)
+                resids[j] = profile - ampl*template
+            u, s, pcs = svd(resids, full_matrices=return_all)
+            eigvals = s**2
+            
+            scores = np.dot(pcs, profiles_aligned.T)
+            dtoas = toas - trend
+
+            for j, profile in enumerate(profiles):
+                result = toa_pca(template, pcs[:n_pcs], profile)
+                toas[j] = result.toa
+    else:
+        profiles_aligned = np.empty_like(profiles)
+        for j, profile in enumerate(profiles):
+            profiles_aligned[j] = fft_roll(profile, -toas[j])
+        
+        template = np.mean(profiles_aligned, axis=0)
+        for j, profile in enumerate(profiles_aligned):
+            ampl = np.dot(profile, template)/np.dot(template, template)
+            resids[j] = profile - ampl*template
+        u, s, pcs = svd(resids, full_matrices=return_all)
+        eigvals = s**2
+        
+        # Trend used only for computing ΔTOAs
+        trend_coeffs = np.polyfit(profile_number, toas, 1)
+        trend = np.polyval(trend_coeffs, profile_number)
+        scores = np.dot(pcs, profiles_aligned.T)
+        dtoas = toas - trend
+    
+    return template, pcs, eigvals, scores, dtoas
+
+def plot_pcs(phase, template, pcs, eigvals, n_pcs):
+    fig = plt.figure(figsize=(5.4, 4.8))
+    (spec1, spec2, spec3, spec4) = mpl.gridspec.GridSpec(
+        nrows=2, ncols=2, width_ratios=(1.0, 0.25), height_ratios=(0.35, 1.0)
+    )
+    ax_main = fig.add_subplot(spec3)
+    ax_side = fig.add_subplot(spec4, sharey=ax_main)
+    ax_side.tick_params(axis='y', which='both', labelleft=False)
+    ax_top = fig.add_subplot(spec1, sharex=ax_main)
+    ax_top.tick_params(axis='x', which='both', labelbottom=False)
+
+    ax_top.plot(phase, template)
+    ax_top.set_ylabel('Mean')
+
+    ax_side.scatter(eigvals, np.arange(1, len(eigvals)+1))
+    stemlines = [((0, i), (eigval, i)) for i, eigval in enumerate(eigvals)]
+    ax_side.set_ylim(-0.25, n_pcs + 0.75)
+    eigvals_geom_center = np.sqrt(eigvals[0]*eigvals[n_pcs-1])
+    eigvals_span = eigvals[0]/eigvals_geom_center
+    xlim_low = eigvals_geom_center/eigvals_span**1.25
+    xlim_high = eigvals_geom_center*eigvals_span**1.25
+    ax_side.set_xlim(xlim_low, xlim_high)
+    ax_side.set_xscale('log')
+    ax_side.invert_yaxis()
+    ax_side.set_xlabel('Eigenvalue')
+    ax_side.set_xticks([1e-2, 1e0])
+    ax_side.set_xticklabels([r'$10^{-2}$', '1'])
+
+    for i in range(n_pcs):
+        ax_main.plot(phase, -4*pcs[i]+i+1)
+    ax_main.set_ylabel('Principal components')
+    ax_main.set_yticks(np.arange(1, n_pcs+1))
+    ax_main.set_xlabel('Lag (cycles)')
+
+    plt.minorticks_on()
+    plt.tight_layout()
+    
+    return fig, (ax_top, ax_main, ax_side)
+
+ToaScoreResult = namedtuple('ToaResult', ['toa', 'ampl', 'scores'])
+
+def toa_score(template, pcs, coeffs, profile, ts = None, tol = sqrt(np.finfo(np.float64).eps)):
+    '''
+    Calculate a maximum-likelihood TOA given a template and a PCA model of pulse shape variations.
+    Uses the dot-product-based method of Osłowski (2011).
+
+    `pcs`:    The principal components (unit vectors), as rows of an array.
+    `coeffs`: Coefficients of principal component dot products to use in correcter.
+    `ts`:     Evenly-spaced array of phase values corresponding to the profile.
+              Sets the units of the TOA. If this is `None`, the TOA is reported in bins.
+    `tol`:    Relative tolerance for optimization (in bins).
+    '''
+    n = len(profile)
+    if ts is None:
+        ts = np.arange(n)
+    dt = float(ts[1] - ts[0])
+    k = len(pcs)
+
+    result = toa_fourier(template, profile, ts = ts, tol = tol)
+    initial_toa = result.toa
+    ampl = result.ampl
+
+    template_shifted = fft_roll(template, initial_toa/dt)
+    pcs_shifted = fft_roll(pcs, initial_toa/dt)
+    scores = np.dot(pcs_shifted, profile)
+    correcter = np.dot(coeffs, scores)
+    toa = initial_toa - correcter
+
+    return ToaScoreResult(toa=toa, ampl=ampl, scores=scores)
+
+ToaPcaResult = namedtuple('ToaResult', ['toa', 'ampl', 'scores'])
+
+def toa_pca(template, pcs, profile, ts = None, tol = sqrt(np.finfo(np.float64).eps), plot=False):
+    '''
+    Calculate a maximum-likelihood TOA given a template and a PCA model of pulse shape variations.
+    
+    `pcs`: The principal components (unit vectors), as rows of an array.
+    `ts`:  Evenly-spaced array of phase values corresponding to the profile.
+           Sets the units of the TOA. If this is `None`, the TOA is reported in bins.
+    `tol`: Relative tolerance for optimization (in bins).
+    '''
+    n = len(profile)
+    if ts is None:
+        ts = np.arange(n)
+    dt = float(ts[1] - ts[0])
+    k = len(pcs)
+    
+    template_fft = fft(template)
+    profile_fft = fft(profile)
+    pcs_fft = fft(pcs)
+    phase_per_bin = -2j*pi*fftfreq(n)
+    
+    circular_ccf = irfft(rfft(profile)*np.conj(rfft(template)), n)*dt
+    sq_ccf = circular_ccf**2 / (np.sum(template**2)*dt)
+    for i in range(k):
+        pcfft = irfft(rfft(profile)*np.conj(rfft(pcs[i])))*sqrt(dt)
+        sq_ccf += pcfft**2
+    
+    ccf_argmax = np.argmax(sq_ccf)
+    ccf_max_val = sq_ccf[ccf_argmax]
+    ccf_max = ccf_argmax*dt
+    if ccf_argmax > n/2:
+        ccf_max -= n*dt
+    
+    def modified_squared_ccf(tau):
+        phase = phase_per_bin*tau/dt
+        ccf = np.inner(profile_fft, exp(-phase)*np.conj(template_fft))*dt/n
+        sq_ccf = ccf.real**2 / (np.sum(template**2)*dt)
+        
+        for i in range(k):
+            pc_fft = pcs_fft[i]
+            pccf = np.inner(profile_fft, exp(-phase)*np.conj(pc_fft))*sqrt(dt)/n
+            sq_ccf += pccf.real**2
+        
+        return sq_ccf
+    
+    brack = (ccf_max - dt, ccf_max, ccf_max + dt)
+    toa = minimize_scalar(lambda tau: -modified_squared_ccf(tau),
+                          method = 'Brent', bracket = brack, tol = tol*dt).x
+    
+    assert brack[0] < toa < brack[-1]
+    
+    template_shifted = fft_roll(template, toa/dt)
+    b = np.dot(template_shifted, profile)/np.dot(template, template)
+    ampl = b*np.max(template_shifted)
+    
+    pcs_shifted = fft_roll(pcs, toa/dt)
+    scores = np.dot(pcs_shifted, profile)
+    
+    return ToaPcaResult(toa=toa, ampl=ampl, scores=scores)
+
+def toa_pca_prior(template, pcs, weights, profile, ts = None, tol = sqrt(np.finfo(np.float64).eps), plot=False):
+    '''
+    Calculate a maximum-likelihood TOA given a template and a PCA model of pulse shape variations.
+    
+    `pcs`: The principal components (unit vectors), as rows of an array.
+    `ts`:  Evenly-spaced array of phase values corresponding to the profile.
+           Sets the units of the TOA. If this is `None`, the TOA is reported in bins.
+    `tol`: Relative tolerance for optimization (in bins).
+    '''
+    n = len(profile)
+    if ts is None:
+        ts = np.arange(n)
+    dt = float(ts[1] - ts[0])
+    k = len(pcs)
+    
+    template_fft = fft(template)
+    profile_fft = fft(profile)
+    pcs_fft = fft(pcs)
+    phase_per_bin = -2j*pi*fftfreq(n)
+    
+    circular_ccf = irfft(rfft(profile)*np.conj(rfft(template)), n)*dt
+    sq_ccf = circular_ccf**2 / (np.sum(template**2)*dt)
+    for i in range(k):
+        pcfft = irfft(rfft(profile)*np.conj(rfft(pcs[i])))*sqrt(dt)
+        sq_ccf += pcfft**2 / (1 + weights[i])
+    
+    ccf_argmax = np.argmax(sq_ccf)
+    ccf_max_val = sq_ccf[ccf_argmax]
+    ccf_max = ccf_argmax*dt
+    if ccf_argmax > n/2:
+        ccf_max -= n*dt
+    
+    def modified_squared_ccf(tau):
+        phase = phase_per_bin*tau/dt
+        ccf = np.inner(profile_fft, exp(-phase)*np.conj(template_fft))*dt/n
+        sq_ccf = ccf.real**2 / (np.sum(template**2)*dt)
+        
+        for i in range(k):
+            pc_fft = pcs_fft[i]
+            weight = weights[i]
+            pccf = np.inner(profile_fft, exp(-phase)*np.conj(pc_fft))*sqrt(dt)/n
+            sq_ccf += pccf.real**2 / (1 + weight)
+        
+        return sq_ccf
+    
+    brack = (ccf_max - dt, ccf_max, ccf_max + dt)
+    toa = minimize_scalar(lambda tau: -modified_squared_ccf(tau),
+                          method = 'Brent', bracket = brack, tol = tol*dt).x
+    
+    assert brack[0] < toa < brack[-1]
+    
+    template_shifted = fft_roll(template, toa/dt)
+    b = np.dot(template_shifted, profile)/np.dot(template, template)
+    ampl = b*np.max(template_shifted)
+    
+    pcs_shifted = fft_roll(pcs, toa/dt)
+    scores = np.dot(pcs_shifted, profile)
+    
+    return ToaPcaResult(toa=toa, ampl=ampl, scores=scores)
