@@ -4,7 +4,7 @@ from numpy.fft import fft, ifft, rfft, irfft, fftfreq, fftshift
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from scipy.linalg import svd
-from scipy.optimize import minimize_scalar
+from scipy.optimize import minimize_scalar, brentq
 from collections import namedtuple
 
 from rjj.toas import toa_fourier
