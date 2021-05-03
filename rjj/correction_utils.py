@@ -381,3 +381,72 @@ def toa_pca_prior(template, pcs, weights, profile, ts = None, tol = sqrt(np.finf
     scores = np.dot(pcs_shifted, profile)
     
     return ToaPcaResult(toa=toa, ampl=ampl, scores=scores)
+
+def marchenko_pastur_cdf(lmbda, x):
+    '''
+    Calculate the cumulative distribution function for the Marchenko-Pastur distribution.
+    '''
+    lmbda_plus = (1 + sqrt(lmbda))**2
+    lmbda_minus = (1 - sqrt(lmbda))**2
+
+    if x == lmbda_minus:
+        return 0
+    elif x == lmbda_plus:
+        return 1
+    r = np.sqrt((lmbda_plus - x)/(x - lmbda_minus))
+    cdf = 1/2 + np.sqrt((lmbda_plus - x)*(x - lmbda_minus))/(2*pi*lmbda)
+    cdf -= (1+lmbda)*np.arctan((r**2-1)/(2*r))/(2*pi*lmbda)
+    cdf += (1-lmbda)*np.arctan((lmbda_minus*r**2-lmbda_plus)/(2*(1-lmbda)*r))/(2*pi*lmbda)
+    if lmbda > 1:
+        cdf = lmbda*cdf - (lmbda-1)/2
+
+    return cdf
+
+def marchenko_pastur_eigval(m, n, i):
+    '''
+    Use the Marchenko-Pastur distribution to predict the eigenvalue corresponding to the ith
+    principal component of an m×n matrix of white Gaussian noise with unit variance.
+    '''
+    rank = min(m, n)
+    lmbda = n/m
+    lmbda_plus = (1 + sqrt(lmbda))**2
+    lmbda_minus = (1 - sqrt(lmbda))**2
+    
+    def objective(x):
+        cdf = marchenko_pastur_cdf(lmbda, x)
+        return rank*(1 - cdf) - i
+
+    result = brentq(objective, lmbda_minus, lmbda_plus)
+    return result
+
+def get_chisq(pcs, variances, profile):
+    '''
+    Get the chi-squared value (-2 * log-likelihood) of a profile based on a set of
+    basis vectors (`pcs`) and corresponding variances.
+    '''
+    def chisq(shift):
+        pc_ampls = pcs @ fft_roll(profile, -shift)
+        return np.sum(pc_ampls**2/variances)
+    return chisq
+
+def toa_map(template, pcs, eigvals, profile, ts = None, tol = np.sqrt(np.finfo(np.float64).eps)):
+    '''
+    Calculate a maximum a-posteriori TOA estimate using a template and principal components.
+    
+    `pcs`: The principal components (unit vectors), as rows of an array.
+    `eigvals`: The eigenvalue (variance) associated with each principal component.
+    `ts`:  Evenly-spaced array of phase values corresponding to the profile.
+           Sets the units of the TOA. If this is `None`, the TOA is reported in bins.
+    `tol`: Relative tolerance for optimization (in bins).
+    '''
+    n = len(profile)
+    if ts is None:
+        ts = np.arange(n)
+    dt = float(ts[1] - ts[0])
+    k = len(pcs)
+
+    variances = np.full(n-1, 1e-6)
+    variances[:k] = eigvals
+    result = minimize_scalar(get_chisq(pcs, variances, profile), tol = tol)
+    return result.x * dt
+    
