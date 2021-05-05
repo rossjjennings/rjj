@@ -134,7 +134,8 @@ def extract_pcs(profiles, n_pcs, n_iter=1, initial_template=None, return_all=Tru
     -------
     template: The final template
     pcs:      The final principal components
-    eigvals:  The eigenvalues corresponding to the principal components.
+    sgvals:   The singular values (characteristic amplitudes) corresponding to the
+              principal components.
     scores:   The PC scores of the training data.
     dtoas:    The differences between the TOAs and the linear trend.
     '''
@@ -163,7 +164,7 @@ def extract_pcs(profiles, n_pcs, n_iter=1, initial_template=None, return_all=Tru
                 ampl = np.dot(profile, template)/np.dot(template, template)
                 resids[j] = profile - ampl*template
             u, s, pcs = svd(resids, full_matrices=return_all)
-            eigvals = s**2
+            sgvals = s/np.sqrt(resids.shape[0])
             
             scores = np.dot(pcs, profiles_aligned.T)
             dtoas = toas - trend
@@ -181,7 +182,7 @@ def extract_pcs(profiles, n_pcs, n_iter=1, initial_template=None, return_all=Tru
             ampl = np.dot(profile, template)/np.dot(template, template)
             resids[j] = profile - ampl*template
         u, s, pcs = svd(resids, full_matrices=return_all)
-        eigvals = s**2
+        sgvals = s/np.sqrt(resids.shape[0])
         
         # Trend used only for computing ΔTOAs
         trend_coeffs = np.polyfit(profile_number, toas, 1)
@@ -189,7 +190,7 @@ def extract_pcs(profiles, n_pcs, n_iter=1, initial_template=None, return_all=Tru
         scores = np.dot(pcs, profiles_aligned.T)
         dtoas = toas - trend
     
-    return template, pcs, eigvals, scores, dtoas
+    return template, pcs, sgvals, scores, dtoas
 
 def plot_pcs(phase, template, pcs, eigvals, n_pcs):
     fig = plt.figure(figsize=(5.4, 4.8))
