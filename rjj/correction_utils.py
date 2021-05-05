@@ -453,8 +453,9 @@ def toa_map(template, pcs, sgvals, noise_level, profile, dt = 1.0,
     
     grid_points = np.linspace(0, n, grid_size, endpoint=False)
     grid_chisqs = [chisq_fn(x) for x in grid_points]
-    grid_argmax = np.argmax(grid_chisqs)
-    brack = (grid_points[grid_argmax - 1], grid_points[grid_argmax], grid_points[grid_argmax + 1])
+    grid_argmin = grid_points[np.argmin(grid_chisqs)]
+    dgrid = n/grid_size
+    brack = (grid_argmin - dgrid, grid_argmin, grid_argmin + dgrid)
 
     result = minimize_scalar(chisq_fn, method = 'Brent', bracket = brack, tol = tol)
     return result.x * dt
