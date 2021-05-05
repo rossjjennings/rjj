@@ -113,10 +113,9 @@ def calc_dtoas(template, profiles, poly_degree=1):
     
     return dtoas
 
-def extract_pcs(profiles, n_pcs, n_iter=1, initial_template=None, return_all=True, use_trend=True):
+def extract_pcs(profiles, n_pcs, initial_template=None, return_all=True, use_trend=True):
     '''
-    Iteratively extract a template and principal components from a set of profiles.
-    Each iteration uses the results of the previous iteration to improve alignment.
+    Extract a template and principal components from a set of profiles.
     An initial template can be supplied; if not, the default strategy is to average
     the middle 10 percent of profiles to get an initial template.
     
@@ -151,27 +150,22 @@ def extract_pcs(profiles, n_pcs, n_iter=1, initial_template=None, return_all=Tru
     
     resids = np.empty_like(profiles)
     if use_trend:
-        for i in range(n_iter):
-            trend_coeffs = np.polyfit(profile_number, toas, 1)
-            trend = np.polyval(trend_coeffs, profile_number)
-            
-            profiles_aligned = np.empty_like(profiles)
-            for j, profile in enumerate(profiles):
-                profiles_aligned[j] = fft_roll(profile, -trend[j])
-            
-            template = np.mean(profiles_aligned, axis=0)
-            for j, profile in enumerate(profiles_aligned):
-                ampl = np.dot(profile, template)/np.dot(template, template)
-                resids[j] = profile - ampl*template
-            u, s, pcs = svd(resids, full_matrices=return_all)
-            sgvals = s/np.sqrt(resids.shape[0])
-            
-            scores = np.dot(pcs, profiles_aligned.T)
-            dtoas = toas - trend
-
-            for j, profile in enumerate(profiles):
-                result = toa_pca(template, pcs[:n_pcs], profile)
-                toas[j] = result.toa
+        trend_coeffs = np.polyfit(profile_number, toas, 1)
+        trend = np.polyval(trend_coeffs, profile_number)
+        
+        profiles_aligned = np.empty_like(profiles)
+        for j, profile in enumerate(profiles):
+            profiles_aligned[j] = fft_roll(profile, -trend[j])
+        
+        template = np.mean(profiles_aligned, axis=0)
+        for j, profile in enumerate(profiles_aligned):
+            ampl = np.dot(profile, template)/np.dot(template, template)
+            resids[j] = profile - ampl*template
+        u, s, pcs = svd(resids, full_matrices=return_all)
+        sgvals = s/np.sqrt(resids.shape[0])
+        
+        scores = np.dot(pcs, profiles_aligned.T)
+        dtoas = toas - trend
     else:
         profiles_aligned = np.empty_like(profiles)
         for j, profile in enumerate(profiles):
