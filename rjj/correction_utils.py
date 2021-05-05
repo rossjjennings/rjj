@@ -419,34 +419,43 @@ def marchenko_pastur_eigval(m, n, i):
     result = brentq(objective, lmbda_minus, lmbda_plus)
     return result
 
-def get_chisq(pcs, variances, profile):
+def get_chisq(template, pcs, sgvals, noise_level, profile):
     '''
     Get the chi-squared value (-2 * log-likelihood) of a profile based on a set of
     basis vectors (`pcs`) and corresponding variances.
+    
+    `sgvals`: Singular value (scale) associated with each principal component.
+    `noise_level`: Standard deviation of additive noise (in the same units as the profile).
     '''
-    def chisq(shift):
-        pc_ampls = pcs @ fft_roll(profile, -shift)
-        return np.sum(pc_ampls**2/variances)
-    return chisq
+    def chisq_fn(shift):
+        shifted_profile = fft_roll(profile, -shift)
+        pc_ampls = pcs @ shifted_profile
+        chisq = shifted_profile @ shifted_profile
+        chisq -= (template @ shifted_profile)**2 / (template @ template)
+        chisq -= np.sum(pc_ampls**2)
+        chisq /= noise_level**2
+        chisq += np.sum(pc_ampls**2/(sgvals**2 + noise_level**2))
+        return chisq
+    return chisq_fn
 
-def toa_map(template, pcs, eigvals, profile, ts = None, tol = np.sqrt(np.finfo(np.float64).eps)):
+def toa_map(template, pcs, sgvals, noise_level, profile, dt = 1.0,
+            grid_size = 8, tol = np.sqrt(np.finfo(np.float64).eps)):
     '''
     Calculate a maximum a-posteriori TOA estimate using a template and principal components.
     
     `pcs`: The principal components (unit vectors), as rows of an array.
-    `eigvals`: The eigenvalue (variance) associated with each principal component.
-    `ts`:  Evenly-spaced array of phase values corresponding to the profile.
-           Sets the units of the TOA. If this is `None`, the TOA is reported in bins.
+    `sgvals`: The singular value (scale) associated with each principal component.
+    `dt`:  Width of each phase bin. Sets the units of the TOA.
     `tol`: Relative tolerance for optimization (in bins).
     '''
     n = len(profile)
-    if ts is None:
-        ts = np.arange(n)
-    dt = float(ts[1] - ts[0])
-    k = len(pcs)
+    chisq_fn = get_chisq(template, pcs, sgvals, noise_level, profile)
+    
+    grid_points = np.linspace(0, n, grid_size, endpoint=False)
+    grid_chisqs = [chisq_fn(x) for x in grid_points]
+    grid_argmax = np.argmax(grid_chisqs)
+    brack = (grid_points[grid_argmax - 1], grid_points[grid_argmax], grid_points[grid_argmax + 1])
 
-    variances = np.full(n-1, 1e-6)
-    variances[:k] = eigvals
-    result = minimize_scalar(get_chisq(pcs, variances, profile), tol = tol)
+    result = minimize_scalar(chisq_fn, method = 'Brent', bracket = brack, tol = tol)
     return result.x * dt
     
