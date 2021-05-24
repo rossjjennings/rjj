@@ -241,6 +241,5 @@ def powlaw_covmat(T, n, fmin, fmax, sigma2=1):
     indices = np.arange(n)
     xx, yy = np.meshgrid(indices, indices)
     covmat = acf[np.abs(xx-yy)]
-    covmat += 1e-14*np.eye(n) # Fudge slightly to keep it positive definite
     
     return covmat
