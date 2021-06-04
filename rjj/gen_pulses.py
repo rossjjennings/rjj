@@ -39,7 +39,7 @@ class pulse_spec:
                  function `from_template_widths()`.
     fj         : Jitter parameter (std. dev. of location over `width`).
                  Per-component list of values.
-    modindex   : Modulation index (std. dev. of amplitude ovSer `amplitude`).
+    modindex   : Modulation index (std. dev. of amplitude over amplitude).
                  Per-component list of values.
     
     Methods
@@ -205,8 +205,13 @@ def gen_pulses(phase, n_pulses = 5000, SNR = np.inf, spec = pulse_spec()):
     profiles = np.zeros((n_pulses, n_phase))
     
     for c in spec.components():
-        amplitudes = stats.gamma.rvs(size = n_pulses, a = 1/c.modindex**2,
-                                     scale = c.amplitude*c.modindex**2)
+        try:
+            a = 1/c.modindex**2
+        except ZeroDivisionError:
+            amplitudes = np.full(n_pulses, c.amplitude)
+        else:
+            scale = c.amplitude*c.modindex**2
+            amplitudes = stats.gamma.rvs(size = n_pulses, a = a, scale = scale)
         jitter_rms = c.fj*c.width
         locs = c.loc + jitter_rms*randn(n_pulses)
         
@@ -244,8 +249,13 @@ def gen_profiles(phase, n_profiles = 10, npprof = 1000, SNR = np.inf,
     for i in range(n_profiles):
         pulses.fill(0)
         for c in spec.components():
-            amplitudes = stats.gamma.rvs(size = npprof, a = 1/c.modindex**2,
-                                        scale = c.amplitude*c.modindex**2)
+            try:
+                a = 1/c.modindex**2
+            except ZeroDivisionError:
+                amplitudes = np.full(npprof, c.amplitude)
+            else:
+                scale = c.amplitude*c.modindex**2
+                amplitudes = stats.gamma.rvs(size = npprof, a = a, scale = scale)
             jitter_rms = c.fj*c.width
             locs = c.loc + jitter_rms*randn(npprof)
             
