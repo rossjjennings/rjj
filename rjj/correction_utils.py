@@ -202,14 +202,12 @@ def plot_pcs(phase, template, pcs, eigvals, n_pcs):
 
     ax_side.scatter(eigvals, np.arange(1, len(eigvals)+1))
     stemlines = [((0, i), (eigval, i)) for i, eigval in enumerate(eigvals)]
-    ax_side.set_ylim(-0.25, n_pcs + 0.75)
     eigvals_geom_center = np.sqrt(eigvals[0]*eigvals[n_pcs-1])
     eigvals_span = eigvals[0]/eigvals_geom_center
     xlim_low = eigvals_geom_center/eigvals_span**1.25
     xlim_high = eigvals_geom_center*eigvals_span**1.25
     ax_side.set_xlim(xlim_low, xlim_high)
     ax_side.set_xscale('log')
-    ax_side.invert_yaxis()
     ax_side.set_xlabel('Eigenvalue')
     ax_side.set_xticks([1e-2, 1e0])
     ax_side.set_xticklabels([r'$10^{-2}$', '1'])
@@ -218,6 +216,7 @@ def plot_pcs(phase, template, pcs, eigvals, n_pcs):
         ax_main.plot(phase, -4*pcs[i]+i+1)
     ax_main.set_ylabel('Principal components')
     ax_main.set_yticks(np.arange(1, n_pcs+1))
+    ax_main.set_ylim(n_pcs + 0.75, 0.25)
     ax_main.set_xlabel('Lag (cycles)')
 
     plt.minorticks_on()
