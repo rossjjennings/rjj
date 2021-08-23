@@ -217,7 +217,7 @@ def plot_pcs(phase, template, pcs, eigvals, n_pcs):
     ax_main.set_ylabel('Principal components')
     ax_main.set_yticks(np.arange(1, n_pcs+1))
     ax_main.set_ylim(n_pcs + 0.75, 0.25)
-    ax_main.set_xlabel('Lag (cycles)')
+    ax_main.set_xlabel('Phase (cycles)')
 
     plt.minorticks_on()
     plt.tight_layout()
