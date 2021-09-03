@@ -186,7 +186,7 @@ class pulse_spec:
                                for (fwhm, fj) in zip (fwhms, fj)]
         return cls(amplitudes=single_pulse_ampls, widths=single_pulse_widths, fj=fj, **kwargs)
 
-def gen_pulses(phase, n_pulses = 5000, SNR = np.inf, spec = pulse_spec()):
+def gen_pulses(phase, n_pulses = 5000, SNR = np.inf, ampl_dist = 'gamma', spec = pulse_spec()):
     '''
     Generate synthetic pulses from a model with several Gaussian components.
     
@@ -195,6 +195,7 @@ def gen_pulses(phase, n_pulses = 5000, SNR = np.inf, spec = pulse_spec()):
     phase    : Phase values (between -0.5 and 0.5)
     n_pulses : Number of pulses to generate.
     SNR      : Signal-to-noise ratio. If this is `np.inf`, no noise is added.
+    ampl_dist  : Distribution of amplitudes to use. Can be 'gamma' or 'lognorm'.
     spec     : Pulse specification (see `pulse_spec` class)
     
     Output
@@ -210,8 +211,15 @@ def gen_pulses(phase, n_pulses = 5000, SNR = np.inf, spec = pulse_spec()):
         except ZeroDivisionError:
             amplitudes = np.full(n_pulses, c.amplitude)
         else:
-            scale = c.amplitude*c.modindex**2
-            amplitudes = stats.gamma.rvs(size = n_pulses, a = a, scale = scale)
+            if ampl_dist == 'gamma':
+                scale = c.amplitude*c.modindex**2
+                amplitudes = stats.gamma.rvs(size = npprof, a = a, scale = scale)
+            elif ampl_dist == 'lognorm':
+                s = np.sqrt(np.log(1 + c.modindex**2))
+                scale = c.amplitude/np.sqrt(1 + c.modindex**2)
+                amplitudes = stats.lognorm.rvs(size = npprof, s = s, scale = scale)
+            else:
+                raise ValueError(f"Amplitude distribution '{ampl_dist}' not recognized")
         jitter_rms = c.fj*c.width
         locs = c.loc + jitter_rms*randn(n_pulses)
         
@@ -225,7 +233,7 @@ def gen_pulses(phase, n_pulses = 5000, SNR = np.inf, spec = pulse_spec()):
     return profiles
 
 def gen_profiles(phase, n_profiles = 10, npprof = 1000, SNR = np.inf,
-                 spec = pulse_spec()):
+                 ampl_dist = 'gamma', spec = pulse_spec()):
     '''
     Generate average profiles from a model with several Gaussian components.
     Averages pulses in the time domain, generating the Gaussian shape for each.
@@ -236,6 +244,7 @@ def gen_profiles(phase, n_profiles = 10, npprof = 1000, SNR = np.inf,
     n_profiles : Number of profiles to generate.
     npprof     : Number of pulses to average for each profile.
     SNR        : Signal-to-noise ratio. If this is `np.inf`, no noise is added.
+    ampl_dist  : Distribution of amplitudes to use. Can be 'gamma' or 'lognorm'.
     spec       : Pulse specification (see `pulse_spec` class).
     
     Output
@@ -254,8 +263,15 @@ def gen_profiles(phase, n_profiles = 10, npprof = 1000, SNR = np.inf,
             except ZeroDivisionError:
                 amplitudes = np.full(npprof, c.amplitude)
             else:
-                scale = c.amplitude*c.modindex**2
-                amplitudes = stats.gamma.rvs(size = npprof, a = a, scale = scale)
+                if ampl_dist == 'gamma':
+                    scale = c.amplitude*c.modindex**2
+                    amplitudes = stats.gamma.rvs(size = npprof, a = a, scale = scale)
+                elif ampl_dist == 'lognorm':
+                    s = np.sqrt(np.log(1 + c.modindex**2))
+                    scale = c.amplitude/np.sqrt(1 + c.modindex**2)
+                    amplitudes = stats.lognorm.rvs(size = npprof, s = s, scale = scale)
+                else:
+                    raise ValueError(f"Amplitude distribution '{ampl_dist}' not recognized")
             jitter_rms = c.fj*c.width
             locs = c.loc + jitter_rms*randn(npprof)
             
