@@ -213,11 +213,11 @@ def gen_pulses(phase, n_pulses = 5000, SNR = np.inf, ampl_dist = 'gamma', spec =
         else:
             if ampl_dist == 'gamma':
                 scale = c.amplitude*c.modindex**2
-                amplitudes = stats.gamma.rvs(size = npprof, a = a, scale = scale)
+                amplitudes = stats.gamma.rvs(size = n_pulses, a = a, scale = scale)
             elif ampl_dist == 'lognorm':
                 s = np.sqrt(np.log(1 + c.modindex**2))
                 scale = c.amplitude/np.sqrt(1 + c.modindex**2)
-                amplitudes = stats.lognorm.rvs(size = npprof, s = s, scale = scale)
+                amplitudes = stats.lognorm.rvs(size = n_pulses, s = s, scale = scale)
             else:
                 raise ValueError(f"Amplitude distribution '{ampl_dist}' not recognized")
         jitter_rms = c.fj*c.width
