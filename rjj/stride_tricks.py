@@ -2,7 +2,7 @@ import numpy as np
 
 def diag_blocks(arr):
     """
-    Return the contents of the central diamond-shape region of a square matrix.
+    Return the contents of the central diamond-shaped region of a square matrix.
     Rows of the output correspond to diagonals of the original matrix, read from
     upper left to lower right, with the first row corresponding to the uppermost
     diagonal with the appropriate length.
