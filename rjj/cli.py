@@ -11,24 +11,34 @@ class ProgressBar:
         if not 0.0 <= progress <= 1.0:
             raise ValueError("progress must be between 0 and 1 inclusive")
 
-        if self.style.startswith('block'):
-            n = int(self.style[5:])
-            if n == 1:
-                blocks = '█'
-            elif n == 2:
-                blocks = ' ▌█'
-            elif n == 4:
-                blocks = ' ▎▌▊█'
-            elif n == 8:
-                blocks = ' ▏▎▍▌▋▊▉█'
+        if self.style.startswith('block') or self.style in ['dots', 'fade']:
+            if self.style == 'dots':
+                n = 8
+                blocks = '⡀⡄⡆⡇⣇⣧⣷⣿'
+                fg_char = '⣿'
+            elif self.style == 'fade':
+                n = 4
+                blocks = ' ░▒▓█'
+                fg_char = '█'
             else:
-                raise ValueError(f"style {self.style} not understood")
+                n = int(self.style[5:])
+                fg_char = '█'
+                if n == 1:
+                    blocks = '█'
+                elif n == 2:
+                    blocks = ' ▌█'
+                elif n == 4:
+                    blocks = ' ▎▌▊█'
+                elif n == 8:
+                    blocks = ' ▏▎▍▌▋▊▉█'
+                else:
+                    raise ValueError(f"style {self.style} not understood")
             
             if progress == 1.0:
-                return '|' +'█'*(self.width - 2) + '|'
+                return '|' +fg_char*(self.width - 2) + '|'
             else:
                 i = int(progress*(self.width - 2)*n)
-                return '|' + '█'*(i//n) + blocks[i % n] + ' '*(self.width-i//n-3) + '|'
+                return '|' + fg_char*(i//n) + blocks[i % n] + ' '*(self.width-i//n-3) + '|'
 
         elif self.style in ['=>', '->', '=>.', '->.']:
             bg_char = '.' if self.style.endswith('.') else ' '
