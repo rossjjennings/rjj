@@ -1,7 +1,7 @@
 import matplotlib as mpl
 
 def anchored_text(ax, text, loc, fancybox=None, edgecolor=None, facecolor=None,
-                  framealpha=None, frameon=None):
+                  framealpha=None, frameon=None, pad=0, prop=None):
     if fancybox is None:
         fancybox = mpl.rcParams["legend.fancybox"] # default: True
 
@@ -21,12 +21,12 @@ def anchored_text(ax, text, loc, fancybox=None, edgecolor=None, facecolor=None,
     if frameon is None:
         frameon = mpl.rcParams["legend.frameon"] # default: True
 
-    textbox = mpl.offsetbox.AnchoredText(text, loc)
+    textbox = mpl.offsetbox.AnchoredText(text, loc, prop=prop)
 
     if fancybox:
-        textbox.patch.set_boxstyle("round", pad=0, rounding_size=0.2)
+        textbox.patch.set_boxstyle("round", pad=pad, rounding_size=0.2)
     else:
-        textbox.patch.set_boxstyle("square", pad=0)
+        textbox.patch.set_boxstyle("square", pad=pad)
     textbox.patch.set_facecolor(facecolor)
     textbox.patch.set_edgecolor(edgecolor)
     textbox.patch.set_alpha(framealpha)
