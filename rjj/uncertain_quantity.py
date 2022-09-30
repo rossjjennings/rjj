@@ -3,6 +3,21 @@ import astropy.units as u
 import astropy.constants as c
 from uncertainties import ufloat, umath
 
+def uqty(value, uncertainty=0, unit=""):
+    if hasattr(value, 'nominal_value') and hasattr(value, 'std_dev'):
+        pass
+    elif hasattr(value, 'value') and hasattr(value, 'uncertainty') and hasattr(value, 'unit'):
+        uncertainty = value.uncertainty
+        unit = value.unit
+        value = ufloat(value.value, uncertainty)
+    else:
+        value = ufloat(value, uncertainty)
+    return UncertainQuantity(value, unit)
+
+def err(std_dev=1):
+    return UncertainQuantity(ufloat(0, std_dev), "")
+
+
 class UncertainQuantityMeta(type):
     """
     This metaclass saves a huge amount of redundant code by dynamically generating
@@ -50,15 +65,7 @@ class UncertainQuantityMeta(type):
 
 class UncertainQuantity(metaclass=UncertainQuantityMeta):
     def __init__(self, value, unit):
-        try:
-            val, err = value
-        except (TypeError, ValueError):
-            if hasattr(value, 'nominal_value') and hasattr(value, 'std_dev'):
-                self.value = value
-            else:
-                raise ValueError("'value' must be an iterable or ufloat")
-        else:
-            self.value = ufloat(val, err)
+        self.value = value
         self.unit = u.Unit(unit)
 
     def to(self, unit):
@@ -67,10 +74,22 @@ class UncertainQuantity(metaclass=UncertainQuantityMeta):
         return UncertainQuantity(self.value*conversion_factor, unit)
 
     def __str__(self):
-        return f"{str(self.value)} {str(self.unit)}"
+        if self.unit == u.Unit():
+            return f"{self.value}"
+        else:
+            return f"{self.value} {self.unit}"
 
     def __repr__(self):
-        return f"<UncertainQuantity {self.value} {str(self.unit)}>"
+        if self.unit == u.Unit():
+            return f"{self.value!r}"
+        else:
+            return f"{self.value!r} {self.unit}"
+
+    def __format__(self, spec):
+        if self.unit == u.Unit():
+            return f"{{:{spec}}}".format(self.value)
+        else:
+            return f"{{:{spec}}} {{!s}}".format(self.value, self.unit)
 
     def __add__(self, other):
         if hasattr(other, 'to') and callable(other.to):
@@ -135,3 +154,6 @@ class UncertainQuantity(metaclass=UncertainQuantityMeta):
 
     def __ge__(self, other):
         return self.value.nominal_value*self.unit >= other.value.nominal_value*other.unit
+
+    def sqrt(self):
+        return UncertainQuantity(self.value**0.5, self.unit**0.5)
