@@ -1,111 +1,71 @@
 import os
 import time
 import asyncio
+try:
+    import trio
+except ImportError:
+    have_trio = False
+else:
+    have_trio = True
 
-class FIFO:
-    def __init__(self, filename, encoding='utf-8', buffer_size=4096, poll_interval=0.1):
+class AsyncPipe:
+    def __init__(self, filename, mode='r'):
         self.filename = filename
-        self.encoding = encoding
-        self.buffer_size = buffer_size
-        self.poll_interval = poll_interval
+        self.mode = mode
 
     def __enter__(self):
-        self.fd = os.open(self.filename, os.O_NONBLOCK)
+        self.file = open(self.filename, self.mode)
         return self
 
     def __exit__(self, err_type, err_value, traceback):
-        os.close(self.fd)
+        self.file.close()
 
-    def __iter__(self):
-        return self.read_until_disconnect()
+    def _read(self, future):
+        item = self.file.read()
+        if not future.cancelled():
+            future.set_result(item)
 
-    def read(self, block_until_connect=True):
-        if self.encoding is None:
-            result = b''
-        else:
-            result = ''
-        while True:
-            try:
-                contents = os.read(self.fd, self.buffer_size)
-            except BlockingIOError:
-                if result:
-                    return result
-                time.sleep(self.poll_interval)
-            else:
-                if contents:
-                    if self.encoding is not None:
-                        contents = contents.decode(self.encoding)
-                    result += contents
-                else:
-                    if result:
-                        return result
-                    elif block_until_connect:
-                        time.sleep(self.poll_interval)
-                    else:
-                        raise EOFError("Pipe is empty, no writers connected")
+    def _write(self, item, future):
+        self.file.write(item)
+        if not future.cancelled():
+            future.set_result(None)
 
-    def read_until_disconnect(self, block_until_connect=True):
-        yield self.read(block_until_connect=block_until_connect)
-        while True:
-            try:
-                yield self.read(block_until_connect=False)
-            except EOFError:
-                break
+    async def read(self):
+        loop = asyncio.get_running_loop()
+        future = loop.create_future()
+        loop.add_reader(self.file.fileno(), self._read, future)
+        try:
+            item = await future
+        finally:
+            loop.remove_reader(self.file.fileno())
+        return item
 
-    def read_forever(self):
-        while True:
-            yield self.read()
+    async def write(self, item):
+        loop = asyncio.get_running_loop()
+        future = loop.create_future()
+        loop.add_writer(self.file.fileno(), self._write, item, future)
+        try:
+            item = await future
+        finally:
+            loop.remove_writer(self.file.fileno())
 
-class AsyncFIFO:
-    def __init__(self, filename, encoding='utf-8', buffer_size=4096, poll_interval=0.1):
-        self.filename = filename
-        self.encoding = encoding
-        self.buffer_size = buffer_size
-        self.poll_interval = poll_interval
+if have_trio:
+    class TrioPipe:
+        def __init__(self, filename, mode='r'):
+            self.filename = filename
+            self.mode = mode
 
-    def __enter__(self):
-        self.fd = os.open(self.filename, os.O_NONBLOCK)
-        return self
+        def __enter__(self):
+            self.file = open(self.filename, self.mode)
+            return self
 
-    def __exit__(self, err_type, err_value, traceback):
-        os.close(self.fd)
+        def __exit__(self, err_type, err_value, traceback):
+            self.file.close()
 
-    def __aiter__(self):
-        return self.read_until_disconnect()
+        async def read(self):
+            await trio.lowlevel.wait_readable(self.file)
+            return self.file.read()
 
-    async def read(self, yield_until_connect=True):
-        if self.encoding is None:
-            result = b''
-        else:
-            result = ''
-        while True:
-            try:
-                contents = os.read(self.fd, self.buffer_size)
-            except BlockingIOError:
-                if result:
-                    return result
-                await asyncio.sleep(self.poll_interval)
-            else:
-                if contents:
-                    if self.encoding is not None:
-                        contents = contents.decode(self.encoding)
-                    result += contents
-                else:
-                    if result:
-                        return result
-                    elif yield_until_connect:
-                        await asyncio.sleep(self.poll_interval)
-                    else:
-                        raise EOFError("Pipe is empty, no writers connected")
-
-    async def read_until_disconnect(self, yield_until_connect=True):
-        yield await self.read(yield_until_connect=yield_until_connect)
-        while True:
-            try:
-                yield await self.read(yield_until_connect=False)
-            except EOFError:
-                break
-
-    async def read_forever(self):
-        while True:
-            yield await self.read()
+        async def write(self, item):
+            await trio.lowlevel.wait_writable(self.file)
+            return self.file.write(item)
