@@ -22,6 +22,7 @@ async def wait_readable(obj):
     """
     library = sniffio.current_async_library()
     if library == "trio":
+        import trio
         return await trio.lowlevel.wait_readable(obj)
     elif library == "asyncio":
         pass
@@ -53,6 +54,7 @@ async def wait_writable(obj):
     """
     library = sniffio.current_async_library()
     if library == "trio":
+        import trio
         return await trio.lowlevel.wait_writable(obj)
     elif library == "asyncio":
         pass
