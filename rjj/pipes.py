@@ -56,10 +56,14 @@ class AsyncPipe:
             yield message
 
 
-    async def read(self):
+    async def read(self, wait_closed=True):
         """
-        Read data from the pipe until it is closed,
-        then return everything read.
+        Read data from the pipe.
+
+        Parameters
+        ----------
+        wait_closed: Whether to wait to return until the pipe is closed.
+                     If `False`, return as soon as the pipe is blocked.
         """
         content = b''
         # wait until the pipe is opened by a writer
@@ -68,7 +72,11 @@ class AsyncPipe:
             try:
                 item = os.read(self.fd, self.blocksize)
             except BlockingIOError:
-                await wait_readable(self.fd)
+                # pipe is blocked
+                if wait_closed:
+                    await wait_readable(self.fd)
+                else:
+                    break
             else:
                 if not item:
                     # pipe is closed
