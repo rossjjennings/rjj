@@ -37,6 +37,9 @@ class LatinSquare:
             col_sym.append(row_by_sym)
         self.col_sym = np.array(col_sym, dtype=object)
 
+    def __eq__(self, other):
+        return np.all(self.row_col == other.row_col)
+
     def take_step(self, row, col, sym):
         """
         Make a "±1-move", after Jacobsen & Matthews (1996), J. Comb. Des. 4 (6), p. 410.
@@ -141,16 +144,97 @@ class LatinSquare:
 
     @classmethod
     def cyclic(cls, size):
+        """
+        Generate the unique cyclic Latin square of a given size.
+        """
         square = (np.arange(size)[:, np.newaxis] + np.arange(size)) % size
         return cls(square)
 
     @classmethod
     def random(cls, size, rng=np.random.default_rng()):
+        """
+        Generate a random Latin square of a given size, using the algorithm of
+        Jacobsen & Matthews (1996), J. Comb. Des. 4 (6), p. 410.
+        """
         ls = cls.cyclic(size)
         for i in range(size**3):
             ls.random_step(rng)
         ls.step_until_proper()
         return ls
+
+    def format_square(self, letters=None, symbol_sep=' ', row_sep='\n'):
+        """
+        Format this Latin square.
+
+        Parameters
+        ----------
+        letters: Symbols to use for formatting. If `None`, zero-padded hexadecimal
+                 numbers will be used. If `True` (only allowed for squares of size
+                 26 or less), letters from the Latin alphabet will be used.
+                 Otherwise, this should be a sequence of strings representing the
+                 symbols to use.
+        """
+        if letters is None:
+            hexlen = int(np.ceil(np.log2(self.size)/4))
+            padhex = f"{{:>0{hexlen}x}}"
+            letters = [padhex.format(i) for i in range(self.size)]
+        elif letters is True:
+            letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        formatted_rows = []
+        for row in self.row_col:
+            formatted_rows.append(symbol_sep.join(letters[i] for i in row))
+        return row_sep.join(formatted_rows)
+
+    def format_flat(self, letters=None):
+        return self.format_square(letters, symbol_sep='', row_sep=' ')
+
+    def print_square(self, letters=None):
+        """
+        Print this Latin square.
+
+        Parameters
+        ----------
+        letters: Symbols to use for printing. If `None`, zero-padded hexadecimal
+                 numbers will be used. If `True` (only allowed for squares of size
+                 26 or less), letters from the Latin alphabet will be used.
+                 Otherwise, this should be a sequence of strings representing the
+                 symbols to use.
+        """
+        print(self.format_square(letters))
+
+    def transpose(self, which='rc'):
+        """
+        Transpose the Latin square.
+
+        Parameters
+        ----------
+        which: Permutation of row (r), column (c), and symbol (s) to apply.
+               Interpreted as a cycle, i.e. 'rcs' and 'rsc' represent inverse
+               cyclic permutations.
+        """
+        if which in ['rc', 'cr']:
+            return LatinSquare(self.row_col.T)
+        elif which in ['rs', 'sr']:
+            return LatinSquare(self.col_sym.T)
+        elif which in ['cs', 'sc']:
+            return LatinSquare(self.row_sym)
+        elif which in ['rcs', 'csr', 'src']:
+            return LatinSquare(self.col_sym)
+        elif which in ['rsc', 'scr', 'crs']:
+            return LatinSquare(self.row_sym.T)
+        else:
+            raise ValueError(f"invalid axis argument which='{which}'")
+
+    def reduce(self):
+        """
+        Permute the rows and columns of this Latin square to obtain a
+        reduced Latin square.
+        """
+        colsort = np.argsort(self.row_col[0,:])
+        colsorted = self.row_col[:,colsort]
+        rowsort = np.argsort(colsorted[:,0])
+        reduced = colsorted[rowsort,:]
+        return LatinSquare(reduced)
 
 class ImproperEntry:
     def __init__(self, proper_values, improper_value):
