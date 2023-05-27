@@ -162,45 +162,81 @@ class LatinSquare:
         ls.step_until_proper()
         return ls
 
-    def format_square(self, letters=None, symbol_sep=' ', row_sep='\n'):
+    def format_square(self, symbols=None, symbol_sep=None, row_sep='\n'):
         """
         Format this Latin square.
 
         Parameters
         ----------
-        letters: Symbols to use for formatting. If `None`, zero-padded hexadecimal
-                 numbers will be used. If `True` (only allowed for squares of size
-                 26 or less), letters from the Latin alphabet will be used.
+        symbols: Symbols to use for formatting. There are three special values:
+                 If this is `None`, zero-padded hexadecimal numbers will be used.
+                 If this is "letters" , letters from the Latin alphabet will be used.
+                 An IndexError will be raised if the size of the square is > 26.
+                 If this is "colors", colored squares will be used. An IndexError will
+                 be raised if the size of the square is > 18.
                  Otherwise, this should be a sequence of strings representing the
                  symbols to use.
+        symbol_sep: Separator used between symbols. The default is to use a space (' ')
+                 except when symbols="colors", when the empty string ('') is used instead.
+        row_sep: Separator between rows. Can be customized to output the square on
+                 a single line.
         """
-        if letters is None:
+        if symbol_sep is None:
+            symbol_sep = '' if symbols == "colors" else ' '
+
+        if symbols is None:
             hexlen = int(np.ceil(np.log2(self.size)/4))
             padhex = f"{{:>0{hexlen}x}}"
-            letters = [padhex.format(i) for i in range(self.size)]
-        elif letters is True:
-            letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+            symbols = [padhex.format(i) for i in range(self.size)]
+        elif symbols == "letters":
+            symbols = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        elif symbols == "colors":
+            symbols = [
+                # basic colors
+                '\x1b[41m  \x1b[0m', # red
+                '\x1b[42m  \x1b[0m', # green
+                '\x1b[43m  \x1b[0m', # yellow/orange
+                '\x1b[44m  \x1b[0m', # blue
+                '\x1b[45m  \x1b[0m', # magenta/purple
+                '\x1b[46m  \x1b[0m', # cyan
+                # half-shaded colors
+                '\x1b[31m\u2592\u2592\x1b[0m', # red fg
+                '\x1b[32m\u2592\u2592\x1b[0m', # green fg
+                '\x1b[33m\u2592\u2592\x1b[0m', # orange fg
+                '\x1b[34m\u2592\u2592\x1b[0m', # blue fg
+                '\x1b[35m\u2592\u2592\x1b[0m', # purple fg
+                '\x1b[36m\u2592\u2592\x1b[0m', # cyan fg
+                '\x1b[41m\u2592\u2592\x1b[0m', # red bg
+                '\x1b[42m\u2592\u2592\x1b[0m', # green bg
+                '\x1b[43m\u2592\u2592\x1b[0m', # orange bg
+                '\x1b[44m\u2592\u2592\x1b[0m', # blue bg
+                '\x1b[45m\u2592\u2592\x1b[0m', # purple bg
+                '\x1b[46m\u2592\u2592\x1b[0m', # cyan bg
+            ]
         formatted_rows = []
         for row in self.row_col:
-            formatted_rows.append(symbol_sep.join(letters[i] for i in row))
+            formatted_rows.append(symbol_sep.join(symbols[i] for i in row))
         return row_sep.join(formatted_rows)
 
-    def format_flat(self, letters=None):
-        return self.format_square(letters, symbol_sep='', row_sep=' ')
+    def format_flat(self, symbols=None):
+        return self.format_square(symbols, symbol_sep='', row_sep=' ')
 
-    def print_square(self, letters=None):
+    def print_square(self, symbols=None):
         """
         Print this Latin square.
 
         Parameters
         ----------
-        letters: Symbols to use for printing. If `None`, zero-padded hexadecimal
-                 numbers will be used. If `True` (only allowed for squares of size
-                 26 or less), letters from the Latin alphabet will be used.
+        symbols: Symbols to use for formatting. There are three special values:
+                 If this is `None`, zero-padded hexadecimal numbers will be used.
+                 If this is "letters" , letters from the Latin alphabet will be used.
+                 An IndexError will be raised if the size of the square is > 26.
+                 If this is "colors", colored squares will be used. An IndexError will
+                 be raised if the size of the square is > 18.
                  Otherwise, this should be a sequence of strings representing the
                  symbols to use.
         """
-        print(self.format_square(letters))
+        print(self.format_square(symbols))
 
     def transpose(self, which='rc'):
         """
