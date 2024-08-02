@@ -88,3 +88,43 @@ def rise_set_table(source_coords, observatory, horizon, equinox=None):
 
         table += f"| {source} | {rise_time} | {set_time} | {diff} |\n"
     return table
+
+def calc_equivalent_coords(start_lst, end_lst, observatory, horizon, equinox=None):
+    """
+    Inverse of calc_rise_set(): Calculate the sky coordinates that are above
+    the horizon between the specified LSTs.
+
+    Parameters
+    ----------
+    start_lst: Initial LST, as a Quantity or Angle.
+    end_lst: Final LST, as a Quantity or Angle.
+    observatory: PINT observatory code or EarthLocation.
+    horizon: Altitude of effective horizon (Quantity or Angle).
+    equinox: Equinox for coordinate precession (as Time). If left at `None`,
+             will use the current time. The special value 'ICRS' will make it
+             use ICRS J2000 coordinates directly (this is only reasonable near
+             for observing times near J2000.0).
+    """
+    if not hasattr(observatory, 'to_geodetic'):
+        observatory = pint.observatory.get_observatory(observatory)
+        observatory = observatory.earth_location_itrf()
+    obs_coords = observatory.to_geodetic()
+    if equinox is None:
+        frame = PrecessedGeocentric(equinox=Time.now())
+    elif hasattr(equinox, 'upper') and equinox.upper() == 'ICRS':
+        frame = ICRS
+    else:
+        frame = PrecessedGeocentric(equinox=Time(equinox, format='jyear'))
+    span = (end_lst - start_lst) % (360*u.deg)
+    ra = (start_lst + span/2) % (360*u.deg)
+    sign_lat = np.sign(obs_coords.lat)
+    discriminant = (
+        np.cos(span/2)**2*np.cos(obs_coords.lat)**2
+        + np.sin(obs_coords.lat)**2 - np.sin(horizon)**2
+    )
+    dec = 2*np.arctan(
+        (np.sin(obs_coords.lat) - sign_lat*discriminant)
+        /(np.cos(span/2)*np.cos(obs_coords.lat) + np.sin(horizon))
+    )
+    dec = Angle(dec.to(u.deg))
+    return SkyCoord(ra=ra, dec=dec, frame=frame)
