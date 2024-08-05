@@ -123,7 +123,7 @@ def calc_equivalent_coords(start_lst, end_lst, observatory, horizon, equinox=Non
         + np.sin(obs_coords.lat)**2 - np.sin(horizon)**2
     )
     dec = 2*np.arctan(
-        (np.sin(obs_coords.lat) - sign_lat*discriminant)
+        (np.sin(obs_coords.lat) - sign_lat*np.sqrt(discriminant))
         /(np.cos(span/2)*np.cos(obs_coords.lat) + np.sin(horizon))
     )
     dec = Angle(dec.to(u.deg))
