@@ -187,7 +187,7 @@ def rolling_sum(arr, size):
     s = np.cumsum(arr)
     return np.array([s[(i+size)%n]-s[i]+(i+size)//n*s[-1] for i in range(n)])
 
-def red_noise(index, size, pad_factor=2):
+def red_noise(index, size, pad_factor=2, rng=np.random.default_rng()):
     '''
     Create a realization of power-law red noise with unit variance.
     Works around spectra that diverge at zero frequency by removing
@@ -201,7 +201,7 @@ def red_noise(index, size, pad_factor=2):
                   periodic output.
     '''
     bufsize = pad_factor*size//2+1
-    white_noise = randn(bufsize) + 1j*randn(bufsize)
+    white_noise = rng.normal(size=bufsize) + 1j*rng.normal(size=bufsize)
     
     freq = rfftfreq(pad_factor*size)
     freq[0] = 1
